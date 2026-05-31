@@ -13,6 +13,10 @@ drop table if exists public.competitions cascade;
 drop table if exists public.lecturers cascade;
 drop table if exists public.users cascade;
 
+drop policy if exists "profile photos select authenticated" on storage.objects;
+drop policy if exists "profile photos insert own folder" on storage.objects;
+drop policy if exists "profile photos update own folder" on storage.objects;
+
 create table public.users (
   id uuid primary key references auth.users(id) on delete cascade,
   name text not null,
@@ -21,6 +25,7 @@ create table public.users (
   study_program text,
   batch_year integer,
   skills text default '',
+  avatar_url text,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -112,6 +117,7 @@ create table public.achievements (
   team_id uuid references public.teams(id) on delete set null,
   competition_name text not null,
   award text not null,
+  role_in_competition text,
   category text,
   level text,
   year text,
@@ -129,6 +135,10 @@ alter table public.team_members enable row level security;
 alter table public.join_requests enable row level security;
 alter table public.mentorship_requests enable row level security;
 alter table public.achievements enable row level security;
+
+insert into storage.buckets (id, name, public)
+values ('profile-photos', 'profile-photos', true)
+on conflict (id) do nothing;
 
 create policy "users select own profile"
 on public.users for select to authenticated
@@ -228,3 +238,25 @@ create policy "achievements update own"
 on public.achievements for update to authenticated
 using (student_id = auth.uid())
 with check (student_id = auth.uid());
+
+create policy "profile photos select authenticated"
+on storage.objects for select to authenticated
+using (bucket_id = 'profile-photos');
+
+create policy "profile photos insert own folder"
+on storage.objects for insert to authenticated
+with check (
+  bucket_id = 'profile-photos'
+  and (storage.foldername(name))[1] = auth.uid()::text
+);
+
+create policy "profile photos update own folder"
+on storage.objects for update to authenticated
+using (
+  bucket_id = 'profile-photos'
+  and (storage.foldername(name))[1] = auth.uid()::text
+)
+with check (
+  bucket_id = 'profile-photos'
+  and (storage.foldername(name))[1] = auth.uid()::text
+);

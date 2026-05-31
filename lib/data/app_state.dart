@@ -481,37 +481,100 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<String> addAchievementApi(String title) async {
+  Future<String> createAchievementApi({
+    required String competitionName,
+    required String award,
+    required String roleInCompetition,
+    required String category,
+    required String level,
+    required String year,
+    required String certificateLink,
+    required String description,
+  }) async {
     try {
       await studentRepository.createAchievement(
         studentId: student.id,
-        competitionName: title,
-        award: 'Prestasi Baru',
-        category: 'Portofolio',
-        level: 'Kampus',
-        year: DateTime.now().year.toString(),
-        description: 'Prestasi ditambahkan dari aplikasi Prestify.',
+        competitionName: competitionName,
+        award: award,
+        roleInCompetition: roleInCompetition,
+        category: category,
+        level: level,
+        year: year,
+        certificateLink: certificateLink,
+        description: description,
       );
       await loadAchievements();
       return 'Prestasi berhasil ditambahkan.';
     } catch (error, stackTrace) {
-      _logSupabaseError('addAchievementApi', error, stackTrace);
+      _logSupabaseError('createAchievementApi', error, stackTrace);
       return 'Gagal menambahkan prestasi: $error';
     }
   }
 
   Future<String> updateStudentSkills(List<String> skills) async {
     try {
-      await studentRepository.updateSkills(
-        studentId: student.id,
+      student = await studentRepository.updateProfile(
+        userId: student.id,
+        name: student.name,
+        studyProgram: student.program ?? '',
+        batchYear: student.year,
         skills: skills,
       );
-      student = student.copyWith(skills: skills);
       notifyListeners();
       return 'Skill berhasil diperbarui.';
     } catch (error, stackTrace) {
       _logSupabaseError('updateStudentSkills', error, stackTrace);
       return 'Gagal memperbarui skill: $error';
+    }
+  }
+
+  Future<String> updateStudentProfile({
+    required String name,
+    required String studyProgram,
+    required int? batchYear,
+    required List<String> skills,
+  }) async {
+    try {
+      student = await studentRepository.updateProfile(
+        userId: student.id,
+        name: name,
+        studyProgram: studyProgram,
+        batchYear: batchYear,
+        skills: skills,
+      );
+      notifyListeners();
+      return 'Profil berhasil diperbarui.';
+    } catch (error, stackTrace) {
+      _logSupabaseError('updateStudentProfile', error, stackTrace);
+      return 'Gagal memperbarui profil: $error';
+    }
+  }
+
+  Future<String> uploadStudentProfilePhoto({
+    required Uint8List bytes,
+    required String fileName,
+    required String contentType,
+  }) async {
+    try {
+      final avatarUrl = await studentRepository.uploadProfilePhoto(
+        userId: student.id,
+        bytes: bytes,
+        fileName: fileName,
+        contentType: contentType,
+      );
+      student = await studentRepository.updateProfile(
+        userId: student.id,
+        name: student.name,
+        studyProgram: student.program ?? '',
+        batchYear: student.year,
+        skills: student.skills,
+        avatarUrl: avatarUrl,
+      );
+      notifyListeners();
+      return 'Foto profil berhasil diperbarui.';
+    } catch (error, stackTrace) {
+      _logSupabaseError('uploadStudentProfilePhoto', error, stackTrace);
+      return 'Gagal memperbarui foto profil: $error';
     }
   }
 

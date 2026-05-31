@@ -31,6 +31,16 @@ class AuthRepository {
 
     final metadata = authUser.userMetadata ?? const <String, dynamic>{};
     final name = _displayName(metadata, email);
+    final data = await client
+        .from('users')
+        .select()
+        .eq('id', authUser.id)
+        .limit(1);
+    final users = asMapList(data);
+    if (users.isNotEmpty) {
+      return UserModel.fromJson(users.first);
+    }
+
     final payload = {
       'id': authUser.id,
       'name': name,
@@ -38,27 +48,27 @@ class AuthRepository {
       'role': role.apiValue,
     };
 
-    await client.from('users').upsert(payload, onConflict: 'id');
+    await client.from('users').insert(payload);
 
     if (role == UserRole.lecturer) {
-      await client.from('lecturers').upsert({
+      await client.from('lecturers').insert({
         'id': authUser.id,
         'name': name,
         'email': email,
-      }, onConflict: 'id');
+      });
     }
 
-    final data = await client
+    final createdData = await client
         .from('users')
         .select()
         .eq('id', authUser.id)
         .limit(1);
-    final users = asMapList(data);
-    if (users.isEmpty) {
+    final createdUsers = asMapList(createdData);
+    if (createdUsers.isEmpty) {
       throw StateError('Profil pengguna gagal dibuat.');
     }
 
-    return UserModel.fromJson(users.first);
+    return UserModel.fromJson(createdUsers.first);
   }
 
   Future<void> signOut() {

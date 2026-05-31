@@ -43,6 +43,7 @@ class UserModel {
     this.program,
     this.year,
     this.skills = const [],
+    this.avatarUrl,
   });
 
   final String id;
@@ -52,6 +53,7 @@ class UserModel {
   final String? program;
   final int? year;
   final List<String> skills;
+  final String? avatarUrl;
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
@@ -80,6 +82,7 @@ class UserModel {
                     .where((item) => item.isNotEmpty)
                     .toList() ??
                 const []),
+      avatarUrl: json['avatar_url']?.toString(),
     );
   }
 
@@ -92,6 +95,7 @@ class UserModel {
       'program': program,
       'year': year,
       'skills': skills,
+      'avatar_url': avatarUrl,
     };
   }
 
@@ -103,6 +107,7 @@ class UserModel {
     String? program,
     int? year,
     List<String>? skills,
+    String? avatarUrl,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -112,6 +117,7 @@ class UserModel {
       program: program ?? this.program,
       year: year ?? this.year,
       skills: skills ?? this.skills,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
     );
   }
 }
