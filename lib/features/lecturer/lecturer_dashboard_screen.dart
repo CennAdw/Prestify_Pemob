@@ -39,11 +39,15 @@ class _LecturerDashboardScreenState extends State<LecturerDashboardScreen> {
         actions: [
           IconButton(
             tooltip: 'Keluar',
-            onPressed: () => Navigator.pushNamedAndRemoveUntil(
-              context,
-              '/login',
-              (_) => false,
-            ),
+            onPressed: () async {
+              await state.signOut();
+              if (!context.mounted) return;
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/login',
+                (_) => false,
+              );
+            },
             icon: const Icon(Icons.logout_rounded),
           ),
         ],

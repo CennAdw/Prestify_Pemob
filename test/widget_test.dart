@@ -21,7 +21,9 @@ void main() {
     expect(find.widgetWithText(ChoiceChip, 'Mahasiswa'), findsOneWidget);
     expect(find.widgetWithText(ChoiceChip, 'Dosen'), findsOneWidget);
     expect(find.widgetWithText(ChoiceChip, 'Admin'), findsNothing);
-    expect(find.text('Akun Supabase Demo'), findsOneWidget);
+    expect(find.text('Login menggunakan Google'), findsOneWidget);
+    expect(find.text('Email / NIM'), findsNothing);
+    expect(find.text('Password'), findsNothing);
   });
 }
 

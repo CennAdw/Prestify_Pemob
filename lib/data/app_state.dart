@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 
-import '../core/services/auth_service.dart';
 import 'models/achievement_model.dart';
 import 'models/competition_model.dart';
 import 'models/lecturer_model.dart';
@@ -81,15 +80,13 @@ class AppState extends ChangeNotifier {
     this.competitionRepository = const CompetitionRepository(),
     this.lecturerRepository = const LecturerRepository(),
     this.studentRepository = const StudentRepository(),
-    AuthService? authService,
-  }) : authService = authService ?? AuthService();
+  });
 
   final AuthRepository authRepository;
   final TeamRepository teamRepository;
   final CompetitionRepository competitionRepository;
   final LecturerRepository lecturerRepository;
   final StudentRepository studentRepository;
-  final AuthService authService;
 
   static const _emptyStudent = UserModel(
     id: '',
@@ -174,30 +171,21 @@ class AppState extends ChangeNotifier {
     );
   }
 
-  Future<LoginResult> login({
-    required UserRole selectedRole,
-    required String email,
-    required String password,
-  }) async {
+  Future<LoginResult> signInWithGoogle({required UserRole selectedRole}) async {
     isAuthLoading = true;
     notifyListeners();
 
     try {
-      final user = await authRepository.login(
-        email: email,
-        password: password,
-        role: selectedRole,
-      );
-      _setCurrentUser(user);
-      await authService.saveUser(user);
-      apiNotice = null;
+      final launched = await authRepository.signInWithGoogle();
       return LoginResult(
-        success: true,
-        route: _routeForRole(user.role),
-        message: 'Login Supabase berhasil.',
+        success: launched,
+        route: '',
+        message: launched
+            ? 'Selesaikan login di halaman Google.'
+            : 'Browser login Google gagal dibuka.',
       );
     } catch (error, stackTrace) {
-      _logSupabaseError('login', error, stackTrace);
+      _logSupabaseError('signInWithGoogle', error, stackTrace);
       apiNotice = 'Login gagal: $error';
       return LoginResult(
         success: false,
@@ -206,6 +194,54 @@ class AppState extends ChangeNotifier {
       );
     } finally {
       isAuthLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<LoginResult> completeGoogleLogin({
+    required UserRole selectedRole,
+  }) async {
+    isAuthLoading = true;
+    notifyListeners();
+
+    try {
+      final user = await authRepository.completeGoogleLogin(role: selectedRole);
+      _setCurrentUser(user);
+      apiNotice = null;
+      return LoginResult(
+        success: true,
+        route: _routeForRole(user.role),
+        message: 'Login Google berhasil.',
+      );
+    } catch (error, stackTrace) {
+      _logSupabaseError('completeGoogleLogin', error, stackTrace);
+      apiNotice = 'Login Google gagal: $error';
+      return LoginResult(
+        success: false,
+        route: '',
+        message: 'Login Google gagal: $error',
+      );
+    } finally {
+      isAuthLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> signOut() async {
+    try {
+      await authRepository.signOut();
+    } catch (error, stackTrace) {
+      _logSupabaseError('signOut', error, stackTrace);
+    } finally {
+      currentUser = null;
+      student = _emptyStudent;
+      lecturerUser = _emptyLecturerUser;
+      teams = [];
+      lecturers = [];
+      competitions = [];
+      achievements = [];
+      applicationHistory = [];
+      mentoringRequests = [];
       notifyListeners();
     }
   }
@@ -384,6 +420,7 @@ class AppState extends ChangeNotifier {
         appliedRole: 'Mobile Developer',
         message:
             'Saya ingin bergabung dan membantu pengembangan aplikasi serta pitching.',
+        matchingScore: team.matchingScore,
       );
       requestJoinTeam(teamId);
       _addApplicationHistory(team, 'Menunggu', 'Dari Supabase');
@@ -452,7 +489,7 @@ class AppState extends ChangeNotifier {
         award: 'Prestasi Baru',
         category: 'Portofolio',
         level: 'Kampus',
-        year: '2026',
+        year: DateTime.now().year.toString(),
         description: 'Prestasi ditambahkan dari aplikasi UPI Connect+.',
       );
       await loadAchievements();

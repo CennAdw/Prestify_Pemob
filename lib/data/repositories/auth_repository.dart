@@ -1,3 +1,6 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../core/constants/supabase_config.dart';
 import '../../core/services/supabase_service.dart';
 import '../models/user_model.dart';
 import 'repository_helpers.dart';
@@ -5,47 +8,68 @@ import 'repository_helpers.dart';
 class AuthRepository {
   const AuthRepository();
 
-  Future<UserModel> login({
-    required String email,
-    required String password,
-    required UserRole role,
-  }) async {
+  Future<bool> signInWithGoogle() {
+    return SupabaseService.client.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: googleOAuthRedirectUrl,
+      scopes: 'email profile',
+      queryParams: const {'prompt': 'select_account'},
+    );
+  }
+
+  Future<UserModel> completeGoogleLogin({required UserRole role}) async {
     final client = SupabaseService.client;
+    final authUser = client.auth.currentUser;
+    if (authUser == null) {
+      throw StateError('Session Google belum tersedia.');
+    }
+
+    final email = authUser.email ?? '';
+    if (email.isEmpty) {
+      throw StateError('Akun Google tidak mengirim alamat email.');
+    }
+
+    final metadata = authUser.userMetadata ?? const <String, dynamic>{};
+    final name = _displayName(metadata, email);
+    final payload = {
+      'id': authUser.id,
+      'name': name,
+      'email': email,
+      'role': role.apiValue,
+    };
+
+    await client.from('users').upsert(payload, onConflict: 'id');
+
+    if (role == UserRole.lecturer) {
+      await client.from('lecturers').upsert({
+        'id': authUser.id,
+        'name': name,
+        'email': email,
+      }, onConflict: 'id');
+    }
+
     final data = await client
         .from('users')
         .select()
-        .eq('email', email)
-        .eq('role', role.apiValue)
+        .eq('id', authUser.id)
         .limit(1);
-
     final users = asMapList(data);
     if (users.isEmpty) {
-      throw StateError('Akun tidak ditemukan.');
+      throw StateError('Profil pengguna gagal dibuat.');
     }
 
-    final user = users.first;
-    if ((user['password'] ?? '').toString() != password) {
-      throw StateError('Password salah.');
-    }
+    return UserModel.fromJson(users.first);
+  }
 
-    if (role == UserRole.lecturer) {
-      final lecturerData = await client
-          .from('lecturers')
-          .select()
-          .eq('email', email)
-          .limit(1);
-      final lecturers = asMapList(lecturerData);
-      if (lecturers.isNotEmpty) {
-        return UserModel.fromJson({
-          ...user,
-          ...lecturers.first,
-          'lecturer_id': lecturers.first['id'],
-          'role': role.apiValue,
-          'email': user['email'],
-        });
-      }
-    }
+  Future<void> signOut() {
+    return SupabaseService.client.auth.signOut();
+  }
 
-    return UserModel.fromJson(user);
+  String _displayName(Map<String, dynamic> metadata, String email) {
+    final name =
+        metadata['full_name'] ?? metadata['name'] ?? metadata['display_name'];
+    final text = name?.toString().trim() ?? '';
+    if (text.isNotEmpty) return text;
+    return email.split('@').first;
   }
 }

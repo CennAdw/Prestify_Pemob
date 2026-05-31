@@ -1,26 +1,22 @@
 # UPI Connect+
 
-Flutter MVP untuk mencari tim lomba, mengajukan bergabung ke tim, mencari dosen pembimbing, dan mengelola portofolio mahasiswa.
+Flutter app untuk mencari tim lomba, mengajukan bergabung ke tim, mencari dosen pembimbing, dan mengelola portofolio mahasiswa.
 
 ## Supabase Setup
 
-1. Buat project Supabase baru.
+1. Buat project Supabase.
 2. Buka SQL Editor.
 3. Jalankan file `supabase/schema.sql`.
 4. Buka `lib/core/constants/supabase_config.dart`.
-5. Isi URL dan anon key project Supabase:
+5. Isi URL dan anon key project Supabase.
+6. Aktifkan Google di Authentication > Providers.
+7. Tambahkan redirect URL ini di Authentication > URL Configuration:
 
-```dart
-const String supabaseUrl = 'https://PROJECT_ID.supabase.co';
-const String supabaseAnonKey = 'SUPABASE_ANON_KEY';
+```text
+id.upi.connect.upi_connect_plus://login-callback/
 ```
 
-Tidak ada fallback dummy. Kalau konfigurasi, policy, atau tabel Supabase bermasalah, aplikasi menampilkan pesan error dan detailnya dicetak ke debug console Flutter.
-
-## Akun Demo
-
-- Mahasiswa: `candra@upi.edu` / `123456`
-- Dosen: `dosen@upi.edu` / `123456`
+Database tidak diisi seed account. Semua data dibuat oleh user asli setelah login Google.
 
 ## Jalankan App
 
