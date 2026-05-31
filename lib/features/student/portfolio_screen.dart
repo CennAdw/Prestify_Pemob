@@ -42,11 +42,15 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                 ),
                 IconButton(
                   tooltip: 'Keluar',
-                  onPressed: () => Navigator.pushNamedAndRemoveUntil(
-                    context,
-                    '/login',
-                    (_) => false,
-                  ),
+                  onPressed: () async {
+                    await state.signOut();
+                    if (!context.mounted) return;
+                    Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      '/login',
+                      (_) => false,
+                    );
+                  },
                   icon: const Icon(
                     Icons.logout_rounded,
                     color: AppColors.primaryBlue,
@@ -59,12 +63,14 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
               color: AppColors.primaryBlue,
               child: Row(
                 children: [
-                  const CircleAvatar(
+                  CircleAvatar(
                     radius: 30,
                     backgroundColor: AppColors.white,
                     child: Text(
-                      'C',
-                      style: TextStyle(
+                      student.name.isEmpty
+                          ? '?'
+                          : student.name.characters.first.toUpperCase(),
+                      style: const TextStyle(
                         color: AppColors.primaryBlue,
                         fontSize: 24,
                         fontWeight: FontWeight.w900,

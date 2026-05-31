@@ -41,7 +41,7 @@ class StudentHomeScreen extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          'UPI Connect+',
+                          'Prestify',
                           style: AppTextStyles.body.copyWith(
                             color: AppColors.lightBlue,
                             fontWeight: FontWeight.w800,
@@ -50,11 +50,15 @@ class StudentHomeScreen extends StatelessWidget {
                       ),
                       IconButton(
                         tooltip: 'Keluar',
-                        onPressed: () => Navigator.pushNamedAndRemoveUntil(
-                          context,
-                          '/login',
-                          (_) => false,
-                        ),
+                        onPressed: () async {
+                          await state.signOut();
+                          if (!context.mounted) return;
+                          Navigator.pushNamedAndRemoveUntil(
+                            context,
+                            '/login',
+                            (_) => false,
+                          );
+                        },
                         icon: const Icon(
                           Icons.logout_rounded,
                           color: AppColors.white,

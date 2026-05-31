@@ -32,6 +32,15 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
   Widget build(BuildContext context) {
     final state = AppStateScope.of(context);
     final team = state.teamById(widget.teamId);
+    final studentSkills = state.student.skills
+        .map((skill) => skill.toLowerCase())
+        .toSet();
+    final matchedSkills = team.requiredSkills
+        .where((skill) => studentSkills.contains(skill.toLowerCase()))
+        .toList();
+    final missingSkills = team.requiredSkills
+        .where((skill) => !studentSkills.contains(skill.toLowerCase()))
+        .toList();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Detail Tim')),
@@ -149,36 +158,36 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                           style: AppTextStyles.subtitle,
                         ),
                         const SizedBox(height: 10),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: const [
-                            SkillChip(
-                              label: 'Flutter',
-                              icon: Icons.check_circle_rounded,
-                              backgroundColor: Color(0xFFEAF8EE),
-                              textColor: AppColors.successGreen,
+                        if (team.requiredSkills.isEmpty)
+                          Text(
+                            'Tim belum mengisi kebutuhan skill.',
+                            style: AppTextStyles.body.copyWith(
+                              color: AppColors.textGray,
                             ),
-                            SkillChip(
-                              label: 'UI/UX',
-                              icon: Icons.check_circle_rounded,
-                              backgroundColor: Color(0xFFEAF8EE),
-                              textColor: AppColors.successGreen,
-                            ),
-                            SkillChip(
-                              label: 'Pitching',
-                              icon: Icons.check_circle_rounded,
-                              backgroundColor: Color(0xFFEAF8EE),
-                              textColor: AppColors.successGreen,
-                            ),
-                            SkillChip(
-                              label: 'Backend',
-                              icon: Icons.info_rounded,
-                              backgroundColor: Color(0xFFFFF5F3),
-                              textColor: AppColors.alertCoral,
-                            ),
-                          ],
-                        ),
+                          )
+                        else
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              ...matchedSkills.map(
+                                (skill) => SkillChip(
+                                  label: skill,
+                                  icon: Icons.check_circle_rounded,
+                                  backgroundColor: const Color(0xFFEAF8EE),
+                                  textColor: AppColors.successGreen,
+                                ),
+                              ),
+                              ...missingSkills.map(
+                                (skill) => SkillChip(
+                                  label: skill,
+                                  icon: Icons.info_rounded,
+                                  backgroundColor: const Color(0xFFFFF5F3),
+                                  textColor: AppColors.alertCoral,
+                                ),
+                              ),
+                            ],
+                          ),
                       ],
                     ),
                   ),

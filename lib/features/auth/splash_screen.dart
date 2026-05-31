@@ -33,20 +33,20 @@ class SplashScreen extends StatelessWidget {
                 Container(
                   width: 72,
                   height: 72,
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppColors.white.withAlpha(28),
+                    color: Colors.black,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: AppColors.white.withAlpha(60)),
                   ),
-                  child: const Icon(
-                    Icons.school_rounded,
-                    color: AppColors.white,
-                    size: 38,
+                  child: Image.asset(
+                    'assets/images/prestify_logo.png',
+                    fit: BoxFit.contain,
                   ),
                 ),
                 const SizedBox(height: 28),
                 const Text(
-                  'UPI Connect+',
+                  'Prestify',
                   style: TextStyle(
                     color: AppColors.white,
                     fontSize: 36,
@@ -56,7 +56,7 @@ class SplashScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Rumah Prestasi UPI',
+                  'Prestasi Mahasiswa dalam Satu Platform',
                   style: AppTextStyles.subtitle.copyWith(
                     color: AppColors.lightBlue,
                   ),

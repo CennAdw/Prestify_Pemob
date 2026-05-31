@@ -68,7 +68,7 @@ class TeamModel {
       deadline: parseString(json['deadline'], fallback: 'Belum ditentukan'),
       matchingScore: parseInt(
         json['matching_score'] ?? json['matchingScore'],
-        fallback: 65,
+        fallback: 0,
       ),
       status: parseString(
         json['recruitment_status'] ?? json['status'],

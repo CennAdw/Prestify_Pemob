@@ -44,7 +44,7 @@ class TeamRepository {
       'required_roles': requiredRoles,
       'recruitment_status': 'Open Recruitment',
       'progress_status': 'Recruiting',
-      'matching_score': 70,
+      'matching_score': 0,
       'current_members': 1,
       'max_members': 5,
       'deadline': 'Belum ditentukan',
@@ -56,13 +56,14 @@ class TeamRepository {
     required String studentId,
     required String appliedRole,
     required String message,
+    required int matchingScore,
   }) async {
     await SupabaseService.client.from('join_requests').insert({
       'team_id': teamId,
       'student_id': studentId,
       'applied_role': appliedRole,
       'message': message,
-      'matching_score': 82,
+      'matching_score': matchingScore,
       'status': 'Menunggu',
     });
   }
