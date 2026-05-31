@@ -50,7 +50,6 @@ class LecturerRepository {
         .select('*, teams(team_name, competition_name)')
         .eq('lecturer_id', lecturerId)
         .order('created_at', ascending: false);
-
     return asMapList(data).map(MentorshipRequestModel.fromJson).toList();
   }
 
