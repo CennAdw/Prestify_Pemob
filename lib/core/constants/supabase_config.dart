@@ -7,8 +7,7 @@ const String supabaseAnonKey =
 
 // Tambahkan URL ini di Supabase Dashboard > Authentication > URL Configuration
 // > Redirect URLs, lalu aktifkan Google provider di Authentication > Providers.
-const String googleOAuthRedirectUrl =
-    'id.upi.connect.upi_connect_plus://login-callback/';
+final String googleOAuthRedirectUrl = Uri.base.origin;
 
 bool get isSupabaseConfigured =>
     supabaseUrl.startsWith('https://') &&
