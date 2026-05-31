@@ -10,7 +10,8 @@ class AuthRepository {
     required String password,
     required UserRole role,
   }) async {
-    final data = await SupabaseService.client
+    final client = SupabaseService.client;
+    final data = await client
         .from('users')
         .select()
         .eq('email', email)
@@ -25,6 +26,24 @@ class AuthRepository {
     final user = users.first;
     if ((user['password'] ?? '').toString() != password) {
       throw StateError('Password salah.');
+    }
+
+    if (role == UserRole.lecturer) {
+      final lecturerData = await client
+          .from('lecturers')
+          .select()
+          .eq('email', email)
+          .limit(1);
+      final lecturers = asMapList(lecturerData);
+      if (lecturers.isNotEmpty) {
+        return UserModel.fromJson({
+          ...user,
+          ...lecturers.first,
+          'lecturer_id': lecturers.first['id'],
+          'role': role.apiValue,
+          'email': user['email'],
+        });
+      }
     }
 
     return UserModel.fromJson(user);

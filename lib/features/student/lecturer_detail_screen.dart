@@ -158,7 +158,7 @@ class _LecturerDetailScreenState extends State<LecturerDetailScreen> {
                     onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text(
-                          'Jadwal konsultasi dummy berhasil dibuka.',
+                          'Fitur konsultasi siap disambungkan ke jadwal dosen.',
                         ),
                       ),
                     ),

@@ -94,7 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Gunakan akun dummy sesuai role untuk memulai demo.',
+                'Gunakan akun seed Supabase sesuai role untuk memulai demo.',
                 style: AppTextStyles.body.copyWith(color: AppColors.textGray),
               ),
               const SizedBox(height: 24),
@@ -166,13 +166,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: const [
-                    Text('Akun Dummy', style: AppTextStyles.subtitle),
+                    Text('Akun Supabase Demo', style: AppTextStyles.subtitle),
                     SizedBox(height: 10),
-                    _DummyAccountLine(
+                    _DemoAccountLine(
                       label: 'Mahasiswa',
                       email: 'candra@upi.edu',
                     ),
-                    _DummyAccountLine(label: 'Dosen', email: 'dosen@upi.edu'),
+                    _DemoAccountLine(label: 'Dosen', email: 'dosen@upi.edu'),
                   ],
                 ),
               ),
@@ -193,8 +193,8 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-class _DummyAccountLine extends StatelessWidget {
-  const _DummyAccountLine({required this.label, required this.email});
+class _DemoAccountLine extends StatelessWidget {
+  const _DemoAccountLine({required this.label, required this.email});
 
   final String label;
   final String email;

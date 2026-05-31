@@ -147,6 +147,10 @@ insert into public.team_members (team_id, name, role_in_team) values
 insert into public.join_requests (team_id, student_id, applied_role, message, matching_score, status) values
 ('team-eduspark', 'student-candra', 'UI/UX Designer', 'Saya tertarik membantu riset pengguna dan prototype.', 68, 'Menunggu');
 
+insert into public.mentorship_requests (team_id, lecturer_id, proposal_title, proposal_summary, proposal_link, status) values
+('team-nawasena', 'lecturer-bambang', 'Proposal GEMASTIK Nawasena Tech', 'Tim membutuhkan mentoring validasi MVP, arsitektur aplikasi mobile, dan persiapan pitch deck final.', '', 'Menunggu'),
+('team-eduspark', 'lecturer-bambang', 'Proposal LIDM EduSpark Team', 'Tim membutuhkan arahan riset pengguna, desain pembelajaran digital, dan evaluasi prototype.', '', 'Menunggu');
+
 insert into public.achievements (student_id, team_id, competition_name, award, category, level, year, certificate_link, verification_status, description) values
 ('student-candra', null, 'UI/UX Competition', 'Finalis', 'Desain Produk Digital', 'Nasional', '2025', '', 'Terverifikasi', 'Menyusun prototype mobile edukasi berbasis riset pengguna.'),
 ('student-candra', 'team-nawasena', 'GEMASTIK Software Development', 'Peserta', 'Pengembangan Perangkat Lunak', 'Nasional', '2025', '', 'Terverifikasi', 'Mengembangkan MVP aplikasi kolaborasi mahasiswa.');

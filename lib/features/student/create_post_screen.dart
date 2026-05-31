@@ -61,6 +61,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   @override
   Widget build(BuildContext context) {
     final state = AppStateScope.of(context);
+    final recentTeams = state.teams.take(3).toList();
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -149,33 +150,60 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               ),
             ),
             const SizedBox(height: 22),
-            const SectionHeader(title: 'Postingan Lokal'),
+            const SectionHeader(title: 'Tim Recruitment Terbaru'),
             const SizedBox(height: 10),
-            ...state.posts
-                .take(3)
-                .map(
-                  (post) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: CustomCard(
-                      padding: const EdgeInsets.all(14),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            post.type,
-                            style: AppTextStyles.small.copyWith(
-                              color: AppColors.primaryBlue,
-                            ),
+            if (state.isTeamsLoading) ...[
+              const LinearProgressIndicator(
+                minHeight: 4,
+                color: AppColors.primaryBlue,
+                backgroundColor: AppColors.lightBlue,
+              ),
+              const SizedBox(height: 12),
+            ],
+            if (state.teamError != null) ...[
+              CustomCard(
+                color: AppColors.lightBlue,
+                padding: const EdgeInsets.all(12),
+                child: Text(
+                  state.teamError!,
+                  style: AppTextStyles.small.copyWith(
+                    color: AppColors.primaryBlue,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            if (recentTeams.isEmpty)
+              CustomCard(
+                child: Text(
+                  'Belum ada tim dari Supabase.',
+                  style: AppTextStyles.body.copyWith(color: AppColors.textGray),
+                ),
+              )
+            else
+              ...recentTeams.map(
+                (team) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: CustomCard(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          team.status,
+                          style: AppTextStyles.small.copyWith(
+                            color: AppColors.primaryBlue,
                           ),
-                          const SizedBox(height: 4),
-                          Text(post.title, style: AppTextStyles.subtitle),
-                          const SizedBox(height: 4),
-                          Text(post.competition, style: AppTextStyles.muted),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(team.name, style: AppTextStyles.subtitle),
+                        const SizedBox(height: 4),
+                        Text(team.competitionName, style: AppTextStyles.muted),
+                      ],
                     ),
                   ),
                 ),
+              ),
           ],
         ),
       ),

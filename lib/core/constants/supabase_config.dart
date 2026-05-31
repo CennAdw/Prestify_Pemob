@@ -1,8 +1,12 @@
 // Isi dua nilai ini dari Project Settings > API di dashboard Supabase.
-// Selama masih memakai placeholder, aplikasi otomatis memakai fallback dummy.
+// Jika masih placeholder atau salah, request akan gagal dan detail error
+// muncul di debug console Flutter.
 const String supabaseUrl = 'https://byfuvpemgmczdhnvbjgf.supabase.co';
-const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ5ZnV2cGVtZ21jemRobnZiamdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyMTE2MTYsImV4cCI6MjA5NTc4NzYxNn0.AX89Qyta63uR7OLpDuyFopUWbYk9lg0E4ZctnCymBuY';
+const String supabaseAnonKey =
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ5ZnV2cGVtZ21jemRobnZiamdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyMTE2MTYsImV4cCI6MjA5NTc4NzYxNn0.AX89Qyta63uR7OLpDuyFopUWbYk9lg0E4ZctnCymBuY';
 
 bool get isSupabaseConfigured =>
-    !supabaseUrl.contains('https://byfuvpemgmczdhnvbjgf.supabase.co') &&
-    !supabaseAnonKey.contains('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ5ZnV2cGVtZ21jemRobnZiamdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyMTE2MTYsImV4cCI6MjA5NTc4NzYxNn0.AX89Qyta63uR7OLpDuyFopUWbYk9lg0E4ZctnCymBuY');
+    supabaseUrl.startsWith('https://') &&
+    !supabaseUrl.contains('YOUR_PROJECT_ID') &&
+    supabaseAnonKey.isNotEmpty &&
+    !supabaseAnonKey.contains('YOUR_SUPABASE_ANON_KEY');

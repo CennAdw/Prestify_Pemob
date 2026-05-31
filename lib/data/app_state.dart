@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/services/auth_service.dart';
-import 'dummy_data.dart';
 import 'models/achievement_model.dart';
 import 'models/competition_model.dart';
 import 'models/lecturer_model.dart';
+import 'models/mentorship_request_model.dart';
 import 'models/team_model.dart';
 import 'models/user_model.dart';
 import 'repositories/auth_repository.dart';
@@ -12,26 +12,6 @@ import 'repositories/competition_repository.dart';
 import 'repositories/lecturer_repository.dart';
 import 'repositories/student_repository.dart';
 import 'repositories/team_repository.dart';
-
-class RecruitmentPost {
-  const RecruitmentPost({
-    required this.id,
-    required this.type,
-    required this.title,
-    required this.description,
-    required this.skills,
-    required this.competition,
-    required this.createdLabel,
-  });
-
-  final String id;
-  final String type;
-  final String title;
-  final String description;
-  final String skills;
-  final String competition;
-  final String createdLabel;
-}
 
 class ApplicationHistoryItem {
   const ApplicationHistoryItem({
@@ -58,12 +38,16 @@ class MentoringRequest {
     required this.id,
     required this.teamName,
     required this.competitionName,
+    required this.proposalTitle,
+    required this.proposalSummary,
     required this.status,
   });
 
   final String id;
   final String teamName;
   final String competitionName;
+  final String proposalTitle;
+  final String proposalSummary;
   final String status;
 
   MentoringRequest copyWith({String? status}) {
@@ -71,6 +55,8 @@ class MentoringRequest {
       id: id,
       teamName: teamName,
       competitionName: competitionName,
+      proposalTitle: proposalTitle,
+      proposalSummary: proposalSummary,
       status: status ?? this.status,
     );
   }
@@ -81,13 +67,11 @@ class LoginResult {
     required this.success,
     required this.route,
     required this.message,
-    required this.usedFallback,
   });
 
   final bool success;
   final String route;
   final String message;
-  final bool usedFallback;
 }
 
 class AppState extends ChangeNotifier {
@@ -107,19 +91,58 @@ class AppState extends ChangeNotifier {
   final StudentRepository studentRepository;
   final AuthService authService;
 
-  UserModel? currentUser;
-  UserModel student = DummyData.student;
-  UserModel lecturerUser = DummyData.lecturerUser;
+  static const _emptyStudent = UserModel(
+    id: '',
+    name: '',
+    email: '',
+    role: UserRole.student,
+    program: '-',
+    year: null,
+    skills: [],
+  );
 
-  List<TeamModel> teams = List<TeamModel>.from(DummyData.teams);
-  List<LecturerModel> lecturers = List<LecturerModel>.from(DummyData.lecturers);
-  List<CompetitionModel> competitions = List<CompetitionModel>.from(
-    DummyData.competitions,
+  static const _emptyLecturerUser = UserModel(
+    id: '',
+    name: '',
+    email: '',
+    role: UserRole.lecturer,
   );
-  List<AchievementModel> achievements = List<AchievementModel>.from(
-    DummyData.achievements,
+
+  static const _emptyTeam = TeamModel(
+    id: '',
+    name: 'Data tim tidak tersedia',
+    competitionName: '-',
+    description: 'Data tim belum berhasil dimuat dari Supabase.',
+    requiredSkills: [],
+    currentMembers: 0,
+    maxMembers: 0,
+    deadline: '-',
+    matchingScore: 0,
+    status: 'Tidak tersedia',
+    members: [],
   );
-  List<ApplicationHistoryItem> applicationHistory = const [];
+
+  static const _emptyLecturer = LecturerModel(
+    id: '',
+    name: 'Data dosen tidak tersedia',
+    faculty: '-',
+    expertise: [],
+    status: 'Tidak tersedia',
+    currentQuota: 0,
+    maxQuota: 0,
+    experiences: [],
+  );
+
+  UserModel? currentUser;
+  UserModel student = _emptyStudent;
+  UserModel lecturerUser = _emptyLecturerUser;
+
+  List<TeamModel> teams = [];
+  List<LecturerModel> lecturers = [];
+  List<CompetitionModel> competitions = [];
+  List<AchievementModel> achievements = [];
+  List<ApplicationHistoryItem> applicationHistory = [];
+  List<MentoringRequest> mentoringRequests = [];
 
   bool isAuthLoading = false;
   bool isTeamsLoading = false;
@@ -127,6 +150,7 @@ class AppState extends ChangeNotifier {
   bool isLecturersLoading = false;
   bool isAchievementsLoading = false;
   bool isApplicationHistoryLoading = false;
+  bool isMentoringRequestsLoading = false;
 
   String? apiNotice;
   String? teamError;
@@ -134,59 +158,19 @@ class AppState extends ChangeNotifier {
   String? lecturerError;
   String? achievementError;
   String? applicationHistoryError;
+  String? mentoringRequestError;
 
   final Set<String> _requestedTeamIds = {};
   final Set<String> _requestedLecturerIds = {};
 
-  final List<RecruitmentPost> posts = [
-    const RecruitmentPost(
-      id: 'post-1',
-      type: 'Mencari Anggota',
-      title: 'Butuh Flutter dev untuk GEMASTIK',
-      description:
-          'MVP sudah ada, butuh anggota yang kuat di UI mobile dan integrasi state lokal.',
-      skills: 'Flutter, UI/UX, Pitching',
-      competition: 'GEMASTIK XVII',
-      createdLabel: 'Hari ini',
-    ),
-    const RecruitmentPost(
-      id: 'post-2',
-      type: 'Mencari Tim',
-      title: 'Cari tim LIDM bidang media pembelajaran',
-      description:
-          'Ingin bergabung dengan tim yang fokus pada riset pengguna dan prototipe edukasi.',
-      skills: 'Research, UI/UX, Presentation',
-      competition: 'LIDM 2026',
-      createdLabel: 'Kemarin',
-    ),
-  ];
-
-  final List<MentoringRequest> mentoringRequests = [
-    const MentoringRequest(
-      id: 'mentor-1',
-      teamName: 'Nawasena Tech',
-      competitionName: 'GEMASTIK',
-      status: 'Menunggu',
-    ),
-    const MentoringRequest(
-      id: 'mentor-2',
-      teamName: 'EduSpark Team',
-      competitionName: 'LIDM',
-      status: 'Menunggu',
-    ),
-  ];
-
   TeamModel teamById(String id) {
-    return teams.firstWhere(
-      (team) => team.id == id,
-      orElse: () => DummyData.teams.first,
-    );
+    return teams.firstWhere((team) => team.id == id, orElse: () => _emptyTeam);
   }
 
   LecturerModel lecturerById(String id) {
     return lecturers.firstWhere(
       (lecturer) => lecturer.id == id,
-      orElse: () => DummyData.lecturers.first,
+      orElse: () => _emptyLecturer,
     );
   }
 
@@ -211,19 +195,14 @@ class AppState extends ChangeNotifier {
         success: true,
         route: _routeForRole(user.role),
         message: 'Login Supabase berhasil.',
-        usedFallback: false,
       );
-    } catch (_) {
-      final fallbackUser = _fallbackUserFor(selectedRole);
-      _setCurrentUser(fallbackUser);
-      await authService.saveUser(fallbackUser);
-      apiNotice =
-          'Supabase belum tersambung, aplikasi memakai data dummy sementara.';
+    } catch (error, stackTrace) {
+      _logSupabaseError('login', error, stackTrace);
+      apiNotice = 'Login gagal: $error';
       return LoginResult(
-        success: true,
-        route: _routeForRole(selectedRole),
-        message: 'Supabase belum tersambung, masuk mode demo lokal.',
-        usedFallback: true,
+        success: false,
+        route: '',
+        message: 'Login gagal: $error',
       );
     } finally {
       isAuthLoading = false;
@@ -245,14 +224,12 @@ class AppState extends ChangeNotifier {
     notifyListeners();
     try {
       final supabaseTeams = await teamRepository.getTeams();
-      if (supabaseTeams.isNotEmpty) {
-        teams = supabaseTeams.map(_restoreTeamRequestState).toList();
-      }
+      teams = supabaseTeams.map(_restoreTeamRequestState).toList();
       teamError = null;
-    } catch (_) {
-      teamError =
-          'Tidak bisa mengambil data tim dari Supabase. Menampilkan fallback dummy.';
-      teams = teams.isEmpty ? List<TeamModel>.from(DummyData.teams) : teams;
+    } catch (error, stackTrace) {
+      _logSupabaseError('loadTeams', error, stackTrace);
+      teamError = 'Gagal mengambil data tim dari Supabase: $error';
+      teams = [];
     } finally {
       isTeamsLoading = false;
       notifyListeners();
@@ -269,9 +246,9 @@ class AppState extends ChangeNotifier {
       _upsertTeam(detail);
       teamError = null;
       return detail;
-    } catch (_) {
-      teamError =
-          'Detail tim memakai data lokal karena Supabase tidak tersedia.';
+    } catch (error, stackTrace) {
+      _logSupabaseError('loadTeamDetail', error, stackTrace);
+      teamError = 'Gagal mengambil detail tim dari Supabase: $error';
       return teamById(id);
     } finally {
       isTeamsLoading = false;
@@ -283,16 +260,12 @@ class AppState extends ChangeNotifier {
     isCompetitionsLoading = true;
     notifyListeners();
     try {
-      final supabaseCompetitions = await competitionRepository
-          .getCompetitions();
-      if (supabaseCompetitions.isNotEmpty) competitions = supabaseCompetitions;
+      competitions = await competitionRepository.getCompetitions();
       competitionError = null;
-    } catch (_) {
-      competitionError =
-          'Tidak bisa mengambil lomba dari Supabase. Menampilkan fallback dummy.';
-      competitions = competitions.isEmpty
-          ? List<CompetitionModel>.from(DummyData.competitions)
-          : competitions;
+    } catch (error, stackTrace) {
+      _logSupabaseError('loadCompetitions', error, stackTrace);
+      competitionError = 'Gagal mengambil lomba dari Supabase: $error';
+      competitions = [];
     } finally {
       isCompetitionsLoading = false;
       notifyListeners();
@@ -304,18 +277,12 @@ class AppState extends ChangeNotifier {
     notifyListeners();
     try {
       final supabaseLecturers = await lecturerRepository.getLecturers();
-      if (supabaseLecturers.isNotEmpty) {
-        lecturers = supabaseLecturers
-            .map(_restoreLecturerRequestState)
-            .toList();
-      }
+      lecturers = supabaseLecturers.map(_restoreLecturerRequestState).toList();
       lecturerError = null;
-    } catch (_) {
-      lecturerError =
-          'Tidak bisa mengambil dosen dari Supabase. Menampilkan fallback dummy.';
-      lecturers = lecturers.isEmpty
-          ? List<LecturerModel>.from(DummyData.lecturers)
-          : lecturers;
+    } catch (error, stackTrace) {
+      _logSupabaseError('loadLecturers', error, stackTrace);
+      lecturerError = 'Gagal mengambil data dosen dari Supabase: $error';
+      lecturers = [];
     } finally {
       isLecturersLoading = false;
       notifyListeners();
@@ -332,9 +299,9 @@ class AppState extends ChangeNotifier {
       _upsertLecturer(detail);
       lecturerError = null;
       return detail;
-    } catch (_) {
-      lecturerError =
-          'Detail dosen memakai data lokal karena Supabase tidak tersedia.';
+    } catch (error, stackTrace) {
+      _logSupabaseError('loadLecturerDetail', error, stackTrace);
+      lecturerError = 'Gagal mengambil detail dosen dari Supabase: $error';
       return lecturerById(id);
     } finally {
       isLecturersLoading = false;
@@ -346,17 +313,12 @@ class AppState extends ChangeNotifier {
     isAchievementsLoading = true;
     notifyListeners();
     try {
-      final supabaseAchievements = await studentRepository.getAchievements(
-        student.id,
-      );
-      if (supabaseAchievements.isNotEmpty) achievements = supabaseAchievements;
+      achievements = await studentRepository.getAchievements(student.id);
       achievementError = null;
-    } catch (_) {
-      achievementError =
-          'Tidak bisa mengambil prestasi dari Supabase. Menampilkan fallback dummy.';
-      achievements = achievements.isEmpty
-          ? List<AchievementModel>.from(DummyData.achievements)
-          : achievements;
+    } catch (error, stackTrace) {
+      _logSupabaseError('loadAchievements', error, stackTrace);
+      achievementError = 'Gagal mengambil prestasi dari Supabase: $error';
+      achievements = [];
     } finally {
       isAchievementsLoading = false;
       notifyListeners();
@@ -382,11 +344,33 @@ class AppState extends ChangeNotifier {
           )
           .toList();
       applicationHistoryError = null;
-    } catch (_) {
+    } catch (error, stackTrace) {
+      _logSupabaseError('loadApplicationHistory', error, stackTrace);
       applicationHistoryError =
-          'Riwayat ajuan memakai data lokal karena Supabase tidak tersedia.';
+          'Gagal mengambil riwayat ajuan dari Supabase: $error';
+      applicationHistory = [];
     } finally {
       isApplicationHistoryLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadMentoringRequests() async {
+    isMentoringRequestsLoading = true;
+    notifyListeners();
+    try {
+      final requests = await lecturerRepository.getMentorshipRequests(
+        lecturerUser.id,
+      );
+      mentoringRequests = requests.map(_mapMentoringRequest).toList();
+      mentoringRequestError = null;
+    } catch (error, stackTrace) {
+      _logSupabaseError('loadMentoringRequests', error, stackTrace);
+      mentoringRequestError =
+          'Gagal mengambil request bimbingan dari Supabase: $error';
+      mentoringRequests = [];
+    } finally {
+      isMentoringRequestsLoading = false;
       notifyListeners();
     }
   }
@@ -403,16 +387,22 @@ class AppState extends ChangeNotifier {
       );
       requestJoinTeam(teamId);
       _addApplicationHistory(team, 'Menunggu', 'Dari Supabase');
-      return 'Request bergabung berhasil dikirim ke Supabase.';
-    } catch (_) {
-      requestJoinTeam(teamId);
-      _addApplicationHistory(team, 'Menunggu', 'Baru saja');
-      return 'Supabase belum tersambung. Request disimpan lokal sementara.';
+      return 'Request bergabung berhasil dikirim.';
+    } catch (error, stackTrace) {
+      _logSupabaseError('requestJoinTeamApi', error, stackTrace);
+      return 'Gagal mengirim request bergabung: $error';
     }
   }
 
   Future<String> requestLecturerApi(String lecturerId) async {
-    final teamId = teams.isNotEmpty ? teams.first.id : '1';
+    final teamId = teams.isNotEmpty ? teams.first.id : '';
+    if (teamId.isEmpty) {
+      const message =
+          'Gagal mengirim request bimbingan: data tim belum tersedia dari Supabase.';
+      debugPrint('[Supabase][requestLecturerApi] $message');
+      return message;
+    }
+
     try {
       await lecturerRepository.requestMentorship(
         teamId: teamId,
@@ -423,10 +413,10 @@ class AppState extends ChangeNotifier {
         proposalLink: '',
       );
       requestLecturer(lecturerId);
-      return 'Request bimbingan berhasil dikirim ke Supabase.';
-    } catch (_) {
-      requestLecturer(lecturerId);
-      return 'Supabase belum tersambung. Request bimbingan disimpan lokal sementara.';
+      return 'Request bimbingan berhasil dikirim.';
+    } catch (error, stackTrace) {
+      _logSupabaseError('requestLecturerApi', error, stackTrace);
+      return 'Gagal mengirim request bimbingan: $error';
     }
   }
 
@@ -446,24 +436,11 @@ class AppState extends ChangeNotifier {
         requiredSkills: skills,
         requiredRoles: type,
       );
-      addPost(
-        type: type,
-        title: title,
-        description: description,
-        skills: skills,
-        competition: competition,
-      );
       await loadTeams();
-      return 'Postingan recruitment berhasil dipublikasikan ke Supabase.';
-    } catch (_) {
-      addPost(
-        type: type,
-        title: title,
-        description: description,
-        skills: skills,
-        competition: competition,
-      );
-      return 'Supabase belum tersambung. Postingan disimpan lokal sementara.';
+      return 'Postingan recruitment berhasil dipublikasikan.';
+    } catch (error, stackTrace) {
+      _logSupabaseError('publishRecruitmentPost', error, stackTrace);
+      return 'Gagal mempublikasikan postingan: $error';
     }
   }
 
@@ -473,16 +450,16 @@ class AppState extends ChangeNotifier {
         studentId: student.id,
         competitionName: title,
         award: 'Prestasi Baru',
-        category: 'Demo',
+        category: 'Portofolio',
         level: 'Kampus',
         year: '2026',
         description: 'Prestasi ditambahkan dari aplikasi UPI Connect+.',
       );
-      addAchievement(title);
-      return 'Prestasi berhasil ditambahkan ke Supabase.';
-    } catch (_) {
-      addAchievement(title);
-      return 'Supabase belum tersambung. Prestasi disimpan lokal sementara.';
+      await loadAchievements();
+      return 'Prestasi berhasil ditambahkan.';
+    } catch (error, stackTrace) {
+      _logSupabaseError('addAchievementApi', error, stackTrace);
+      return 'Gagal menambahkan prestasi: $error';
     }
   }
 
@@ -493,12 +470,11 @@ class AppState extends ChangeNotifier {
         skills: skills,
       );
       student = student.copyWith(skills: skills);
-      return 'Skill berhasil diperbarui di Supabase.';
-    } catch (_) {
-      student = student.copyWith(skills: skills);
-      return 'Supabase belum tersambung. Skill diperbarui lokal sementara.';
-    } finally {
       notifyListeners();
+      return 'Skill berhasil diperbarui.';
+    } catch (error, stackTrace) {
+      _logSupabaseError('updateStudentSkills', error, stackTrace);
+      return 'Gagal memperbarui skill: $error';
     }
   }
 
@@ -518,77 +494,40 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void addPost({
-    required String type,
-    required String title,
-    required String description,
-    required String skills,
-    required String competition,
-  }) {
-    posts.insert(
-      0,
-      RecruitmentPost(
-        id: 'post-${DateTime.now().microsecondsSinceEpoch}',
-        type: type,
-        title: title,
-        description: description,
-        skills: skills,
-        competition: competition,
-        createdLabel: 'Baru saja',
-      ),
-    );
-    notifyListeners();
-  }
-
-  void addAchievement(String title) {
-    achievements.insert(
-      0,
-      AchievementModel(
-        id: 'ach-${DateTime.now().microsecondsSinceEpoch}',
-        title: title,
-        subtitle: 'Prestasi ditambahkan dari demo lokal UPI Connect+',
-        year: '2026',
-      ),
-    );
-    notifyListeners();
-  }
-
-  void updateMentoringRequest(String requestId, String status) {
-    final index = mentoringRequests.indexWhere(
-      (request) => request.id == requestId,
-    );
-    if (index == -1) return;
-    mentoringRequests[index] = mentoringRequests[index].copyWith(
-      status: status,
-    );
-    notifyListeners();
+  Future<String> updateMentoringRequest(String requestId, String status) async {
+    try {
+      await lecturerRepository.updateMentorshipRequestStatus(
+        requestId: requestId,
+        status: status,
+      );
+      final index = mentoringRequests.indexWhere(
+        (request) => request.id == requestId,
+      );
+      if (index != -1) {
+        mentoringRequests[index] = mentoringRequests[index].copyWith(
+          status: status,
+        );
+      }
+      notifyListeners();
+      return 'Status request berhasil diperbarui.';
+    } catch (error, stackTrace) {
+      _logSupabaseError('updateMentoringRequest', error, stackTrace);
+      return 'Gagal memperbarui status request: $error';
+    }
   }
 
   void _setCurrentUser(UserModel user) {
     currentUser = user;
     switch (user.role) {
       case UserRole.student:
-        student = student.copyWith(
-          id: user.id.isEmpty ? student.id : user.id,
-          name: user.name.isEmpty ? student.name : user.name,
-          email: user.email,
-          skills: user.skills.isEmpty ? student.skills : user.skills,
-          program: user.program ?? student.program,
-          year: user.year ?? student.year,
+        student = user.copyWith(
+          name: user.name.isEmpty ? 'Mahasiswa' : user.name,
+          program: user.program ?? '-',
         );
         break;
       case UserRole.lecturer:
         lecturerUser = user;
         break;
-    }
-  }
-
-  UserModel _fallbackUserFor(UserRole role) {
-    switch (role) {
-      case UserRole.student:
-        return DummyData.student;
-      case UserRole.lecturer:
-        return DummyData.lecturerUser;
     }
   }
 
@@ -655,5 +594,24 @@ class AppState extends ChangeNotifier {
       applicationHistory[existingIndex] = item;
     }
     notifyListeners();
+  }
+
+  MentoringRequest _mapMentoringRequest(MentorshipRequestModel request) {
+    return MentoringRequest(
+      id: request.id,
+      teamName: request.teamName,
+      competitionName: request.competitionName,
+      proposalTitle: request.proposalTitle,
+      proposalSummary: request.proposalSummary,
+      status: request.status,
+    );
+  }
+
+  void _logSupabaseError(String context, Object error, StackTrace stackTrace) {
+    debugPrint('[Supabase][$context] $error');
+    debugPrintStack(
+      label: '[Supabase][$context] Stack trace',
+      stackTrace: stackTrace,
+    );
   }
 }

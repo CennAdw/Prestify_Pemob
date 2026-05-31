@@ -1,21 +1,9 @@
 import '../../core/services/supabase_service.dart';
 import '../models/achievement_model.dart';
-import '../models/student_model.dart';
 import 'repository_helpers.dart';
 
 class StudentRepository {
   const StudentRepository();
-
-  Future<StudentModel> getProfile(String userId) async {
-    final data = await SupabaseService.client
-        .from('users')
-        .select()
-        .eq('id', userId)
-        .limit(1);
-    final users = asMapList(data);
-    if (users.isEmpty) throw StateError('Profil mahasiswa tidak ditemukan.');
-    return StudentModel.fromJson(users.first);
-  }
 
   Future<List<AchievementModel>> getAchievements(String studentId) async {
     final data = await SupabaseService.client

@@ -9,12 +9,29 @@ import '../../core/widgets/section_header.dart';
 import '../../core/widgets/skill_chip.dart';
 import '../../data/app_state.dart';
 
-class LecturerDashboardScreen extends StatelessWidget {
+class LecturerDashboardScreen extends StatefulWidget {
   const LecturerDashboardScreen({super.key});
+
+  @override
+  State<LecturerDashboardScreen> createState() =>
+      _LecturerDashboardScreenState();
+}
+
+class _LecturerDashboardScreenState extends State<LecturerDashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) AppStateScope.of(context).loadMentoringRequests();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final state = AppStateScope.of(context);
+    final waitingCount = state.mentoringRequests
+        .where((request) => request.status == 'Menunggu')
+        .length;
 
     return Scaffold(
       appBar: AppBar(
@@ -86,7 +103,7 @@ class LecturerDashboardScreen extends StatelessWidget {
                               style: AppTextStyles.subtitle,
                             ),
                             Text(
-                              '2 request menunggu keputusan',
+                              '$waitingCount request menunggu keputusan',
                               style: AppTextStyles.muted,
                             ),
                           ],
@@ -113,12 +130,41 @@ class LecturerDashboardScreen extends StatelessWidget {
             const SizedBox(height: 22),
             const SectionHeader(title: 'Request Bimbingan Masuk'),
             const SizedBox(height: 10),
-            ...state.mentoringRequests.map(
-              (request) => Padding(
-                padding: const EdgeInsets.only(bottom: 14),
-                child: _MentoringRequestCard(request: request),
+            if (state.isMentoringRequestsLoading) ...[
+              const LinearProgressIndicator(
+                minHeight: 4,
+                color: AppColors.primaryBlue,
+                backgroundColor: AppColors.lightBlue,
               ),
-            ),
+              const SizedBox(height: 12),
+            ],
+            if (state.mentoringRequestError != null) ...[
+              CustomCard(
+                color: AppColors.lightBlue,
+                padding: const EdgeInsets.all(12),
+                child: Text(
+                  state.mentoringRequestError!,
+                  style: AppTextStyles.small.copyWith(
+                    color: AppColors.primaryBlue,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            if (state.mentoringRequests.isEmpty)
+              CustomCard(
+                child: Text(
+                  'Belum ada request bimbingan dari Supabase.',
+                  style: AppTextStyles.body.copyWith(color: AppColors.textGray),
+                ),
+              )
+            else
+              ...state.mentoringRequests.map(
+                (request) => Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: _MentoringRequestCard(request: request),
+                ),
+              ),
           ],
         ),
       ),
@@ -192,15 +238,15 @@ class _MentoringRequestCard extends StatelessWidget {
                 icon: Icons.check_rounded,
                 backgroundColor: AppColors.successGreen,
                 onPressed: isWaiting
-                    ? () {
-                        state.updateMentoringRequest(request.id, 'Diterima');
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              '${request.teamName} diterima sebagai tim bimbingan.',
-                            ),
-                          ),
+                    ? () async {
+                        final message = await state.updateMentoringRequest(
+                          request.id,
+                          'Diterima',
                         );
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(
+                          context,
+                        ).showSnackBar(SnackBar(content: Text(message)));
                       }
                     : null,
               ),
@@ -210,15 +256,15 @@ class _MentoringRequestCard extends StatelessWidget {
                 icon: Icons.close_rounded,
                 backgroundColor: AppColors.alertCoral,
                 onPressed: isWaiting
-                    ? () {
-                        state.updateMentoringRequest(request.id, 'Ditolak');
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Request ${request.teamName} ditolak.',
-                            ),
-                          ),
+                    ? () async {
+                        final message = await state.updateMentoringRequest(
+                          request.id,
+                          'Ditolak',
                         );
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(
+                          context,
+                        ).showSnackBar(SnackBar(content: Text(message)));
                       }
                     : null,
               ),
@@ -235,7 +281,9 @@ class _MentoringRequestCard extends StatelessWidget {
       builder: (_) => AlertDialog(
         title: Text('Proposal ${request.teamName}'),
         content: Text(
-          'Ringkasan proposal ${request.competitionName}: validasi masalah, rancangan solusi, timeline sprint, dan kebutuhan mentoring mingguan.',
+          request.proposalSummary.isEmpty
+              ? 'Ringkasan proposal ${request.competitionName}: validasi masalah, rancangan solusi, timeline sprint, dan kebutuhan mentoring mingguan.'
+              : request.proposalSummary,
         ),
         actions: [
           TextButton(
