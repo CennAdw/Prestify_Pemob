@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "id.upi.connect" "\0"
-            VALUE "FileDescription", "upi_connect_plus" "\0"
+            VALUE "FileDescription", "Prestify" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "upi_connect_plus" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 id.upi.connect. All rights reserved." "\0"
             VALUE "OriginalFilename", "upi_connect_plus.exe" "\0"
-            VALUE "ProductName", "upi_connect_plus" "\0"
+            VALUE "ProductName", "Prestify" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

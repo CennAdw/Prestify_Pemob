@@ -444,7 +444,7 @@ class AppState extends ChangeNotifier {
       await lecturerRepository.requestMentorship(
         teamId: teamId,
         lecturerId: lecturerId,
-        proposalTitle: 'Proposal Mentoring UPI Connect+',
+        proposalTitle: 'Proposal Mentoring Prestify',
         proposalSummary:
             'Tim membutuhkan masukan untuk validasi ide, teknis MVP, dan strategi presentasi lomba.',
         proposalLink: '',
@@ -490,7 +490,7 @@ class AppState extends ChangeNotifier {
         category: 'Portofolio',
         level: 'Kampus',
         year: DateTime.now().year.toString(),
-        description: 'Prestasi ditambahkan dari aplikasi UPI Connect+.',
+        description: 'Prestasi ditambahkan dari aplikasi Prestify.',
       );
       await loadAchievements();
       return 'Prestasi berhasil ditambahkan.';

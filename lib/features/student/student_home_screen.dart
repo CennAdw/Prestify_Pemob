@@ -41,7 +41,7 @@ class StudentHomeScreen extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          'UPI Connect+',
+                          'Prestify',
                           style: AppTextStyles.body.copyWith(
                             color: AppColors.lightBlue,
                             fontWeight: FontWeight.w800,

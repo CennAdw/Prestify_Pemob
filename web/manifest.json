@@ -1,11 +1,11 @@
 {
-    "name": "upi_connect_plus",
-    "short_name": "upi_connect_plus",
+    "name": "Prestify",
+    "short_name": "Prestify",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Prestify mobile app for student achievement collaboration.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

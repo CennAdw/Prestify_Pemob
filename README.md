@@ -1,4 +1,4 @@
-# UPI Connect+
+# Prestify
 
 Flutter app untuk mencari tim lomba, mengajukan bergabung ke tim, mencari dosen pembimbing, dan mengelola portofolio mahasiswa.
 

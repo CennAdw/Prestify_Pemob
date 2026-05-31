@@ -88,20 +88,21 @@ class _LoginScreenState extends State<LoginScreen> {
               Container(
                 width: 54,
                 height: 54,
+                padding: const EdgeInsets.all(9),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryBlue,
+                  color: Colors.black,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.hub_rounded, color: AppColors.white),
+                child: Image.asset(
+                  'assets/images/prestify_logo.png',
+                  fit: BoxFit.contain,
+                ),
               ),
               const SizedBox(height: 22),
-              const Text(
-                'Masuk ke UPI Connect+',
-                style: AppTextStyles.headline,
-              ),
+              const Text('Masuk ke Prestify', style: AppTextStyles.headline),
               const SizedBox(height: 8),
               Text(
-                'Login menggunakan akun Google untuk mengakses fitur UPI Connect+.',
+                'Login menggunakan akun Google untuk mengakses fitur Prestify.',
                 style: AppTextStyles.body.copyWith(color: AppColors.textGray),
               ),
               const SizedBox(height: 24),

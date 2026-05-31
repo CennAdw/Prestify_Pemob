@@ -34,7 +34,7 @@ class _UpiConnectAppState extends State<UpiConnectApp> {
     return AppStateScope(
       notifier: _appState,
       child: MaterialApp(
-        title: 'UPI Connect+',
+        title: 'Prestify',
         debugShowCheckedModeBanner: false,
         theme: _buildTheme(),
         routes: {
