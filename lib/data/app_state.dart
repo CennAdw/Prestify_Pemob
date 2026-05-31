@@ -7,7 +7,6 @@ import 'models/competition_model.dart';
 import 'models/lecturer_model.dart';
 import 'models/team_model.dart';
 import 'models/user_model.dart';
-import 'repositories/admin_repository.dart';
 import 'repositories/auth_repository.dart';
 import 'repositories/competition_repository.dart';
 import 'repositories/lecturer_repository.dart';
@@ -31,6 +30,26 @@ class RecruitmentPost {
   final String description;
   final String skills;
   final String competition;
+  final String createdLabel;
+}
+
+class ApplicationHistoryItem {
+  const ApplicationHistoryItem({
+    required this.id,
+    required this.teamName,
+    required this.competitionName,
+    required this.appliedRole,
+    required this.matchingScore,
+    required this.status,
+    required this.createdLabel,
+  });
+
+  final String id;
+  final String teamName;
+  final String competitionName;
+  final String appliedRole;
+  final int matchingScore;
+  final String status;
   final String createdLabel;
 }
 
@@ -77,7 +96,6 @@ class AppState extends ChangeNotifier {
     this.teamRepository = const TeamRepository(),
     this.competitionRepository = const CompetitionRepository(),
     this.lecturerRepository = const LecturerRepository(),
-    this.adminRepository = const AdminRepository(),
     this.studentRepository = const StudentRepository(),
     AuthService? authService,
   }) : authService = authService ?? AuthService();
@@ -86,14 +104,12 @@ class AppState extends ChangeNotifier {
   final TeamRepository teamRepository;
   final CompetitionRepository competitionRepository;
   final LecturerRepository lecturerRepository;
-  final AdminRepository adminRepository;
   final StudentRepository studentRepository;
   final AuthService authService;
 
   UserModel? currentUser;
   UserModel student = DummyData.student;
   UserModel lecturerUser = DummyData.lecturerUser;
-  UserModel adminUser = DummyData.adminUser;
 
   List<TeamModel> teams = List<TeamModel>.from(DummyData.teams);
   List<LecturerModel> lecturers = List<LecturerModel>.from(DummyData.lecturers);
@@ -103,38 +119,21 @@ class AppState extends ChangeNotifier {
   List<AchievementModel> achievements = List<AchievementModel>.from(
     DummyData.achievements,
   );
-
-  Map<String, int> adminStats = const {
-    'Total Mahasiswa': 248,
-    'Total Tim': 36,
-    'Total Lomba': 124,
-    'Dosen Aktif': 18,
-  };
-
-  Map<String, int> categoryStats = const {
-    'Teknologi Informasi': 48,
-    'Inovasi Pendidikan': 32,
-    'Data Science': 24,
-    'Kewirausahaan': 20,
-  };
-
-  List<CompetitionModel> pendingCompetitions = DummyData.competitions
-      .where((competition) => competition.status == 'Menunggu Verifikasi')
-      .toList();
+  List<ApplicationHistoryItem> applicationHistory = const [];
 
   bool isAuthLoading = false;
   bool isTeamsLoading = false;
   bool isCompetitionsLoading = false;
   bool isLecturersLoading = false;
   bool isAchievementsLoading = false;
-  bool isAdminLoading = false;
+  bool isApplicationHistoryLoading = false;
 
   String? apiNotice;
   String? teamError;
   String? competitionError;
   String? lecturerError;
   String? achievementError;
-  String? adminError;
+  String? applicationHistoryError;
 
   final Set<String> _requestedTeamIds = {};
   final Set<String> _requestedLecturerIds = {};
@@ -152,11 +151,11 @@ class AppState extends ChangeNotifier {
     ),
     const RecruitmentPost(
       id: 'post-2',
-      type: 'Mencari Dosen Pembimbing',
-      title: 'Pendamping untuk inovasi media belajar',
+      type: 'Mencari Tim',
+      title: 'Cari tim LIDM bidang media pembelajaran',
       description:
-          'Tim LIDM mencari pembimbing yang familiar dengan media pembelajaran interaktif.',
-      skills: 'Research, Education, Video Demo',
+          'Ingin bergabung dengan tim yang fokus pada riset pengguna dan prototipe edukasi.',
+      skills: 'Research, UI/UX, Presentation',
       competition: 'LIDM 2026',
       createdLabel: 'Kemarin',
     ),
@@ -211,19 +210,19 @@ class AppState extends ChangeNotifier {
       return LoginResult(
         success: true,
         route: _routeForRole(user.role),
-        message: 'Login berhasil.',
+        message: 'Login Supabase berhasil.',
         usedFallback: false,
       );
-    } catch (error) {
+    } catch (_) {
       final fallbackUser = _fallbackUserFor(selectedRole);
       _setCurrentUser(fallbackUser);
       await authService.saveUser(fallbackUser);
       apiNotice =
-          'API lokal belum tersambung, aplikasi memakai data dummy sementara.';
+          'Supabase belum tersambung, aplikasi memakai data dummy sementara.';
       return LoginResult(
         success: true,
         route: _routeForRole(selectedRole),
-        message: 'API lokal belum tersambung, masuk mode demo lokal.',
+        message: 'Supabase belum tersambung, masuk mode demo lokal.',
         usedFallback: true,
       );
     } finally {
@@ -233,21 +232,26 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> loadStudentDashboard() async {
-    await Future.wait([loadTeams(), loadCompetitions(), loadAchievements()]);
+    await Future.wait([
+      loadTeams(),
+      loadCompetitions(),
+      loadAchievements(),
+      loadApplicationHistory(),
+    ]);
   }
 
   Future<void> loadTeams() async {
     isTeamsLoading = true;
     notifyListeners();
     try {
-      final apiTeams = await teamRepository.getTeams();
-      if (apiTeams.isNotEmpty) {
-        teams = apiTeams.map(_restoreTeamRequestState).toList();
+      final supabaseTeams = await teamRepository.getTeams();
+      if (supabaseTeams.isNotEmpty) {
+        teams = supabaseTeams.map(_restoreTeamRequestState).toList();
       }
       teamError = null;
     } catch (_) {
       teamError =
-          'Tidak bisa mengambil data tim dari API. Menampilkan fallback dummy.';
+          'Tidak bisa mengambil data tim dari Supabase. Menampilkan fallback dummy.';
       teams = teams.isEmpty ? List<TeamModel>.from(DummyData.teams) : teams;
     } finally {
       isTeamsLoading = false;
@@ -266,7 +270,8 @@ class AppState extends ChangeNotifier {
       teamError = null;
       return detail;
     } catch (_) {
-      teamError = 'Detail tim memakai data lokal karena API tidak tersedia.';
+      teamError =
+          'Detail tim memakai data lokal karena Supabase tidak tersedia.';
       return teamById(id);
     } finally {
       isTeamsLoading = false;
@@ -278,12 +283,13 @@ class AppState extends ChangeNotifier {
     isCompetitionsLoading = true;
     notifyListeners();
     try {
-      final apiCompetitions = await competitionRepository.getCompetitions();
-      if (apiCompetitions.isNotEmpty) competitions = apiCompetitions;
+      final supabaseCompetitions = await competitionRepository
+          .getCompetitions();
+      if (supabaseCompetitions.isNotEmpty) competitions = supabaseCompetitions;
       competitionError = null;
     } catch (_) {
       competitionError =
-          'Tidak bisa mengambil lomba dari API. Menampilkan fallback dummy.';
+          'Tidak bisa mengambil lomba dari Supabase. Menampilkan fallback dummy.';
       competitions = competitions.isEmpty
           ? List<CompetitionModel>.from(DummyData.competitions)
           : competitions;
@@ -297,14 +303,16 @@ class AppState extends ChangeNotifier {
     isLecturersLoading = true;
     notifyListeners();
     try {
-      final apiLecturers = await lecturerRepository.getLecturers();
-      if (apiLecturers.isNotEmpty) {
-        lecturers = apiLecturers.map(_restoreLecturerRequestState).toList();
+      final supabaseLecturers = await lecturerRepository.getLecturers();
+      if (supabaseLecturers.isNotEmpty) {
+        lecturers = supabaseLecturers
+            .map(_restoreLecturerRequestState)
+            .toList();
       }
       lecturerError = null;
     } catch (_) {
       lecturerError =
-          'Tidak bisa mengambil dosen dari API. Menampilkan fallback dummy.';
+          'Tidak bisa mengambil dosen dari Supabase. Menampilkan fallback dummy.';
       lecturers = lecturers.isEmpty
           ? List<LecturerModel>.from(DummyData.lecturers)
           : lecturers;
@@ -326,7 +334,7 @@ class AppState extends ChangeNotifier {
       return detail;
     } catch (_) {
       lecturerError =
-          'Detail dosen memakai data lokal karena API tidak tersedia.';
+          'Detail dosen memakai data lokal karena Supabase tidak tersedia.';
       return lecturerById(id);
     } finally {
       isLecturersLoading = false;
@@ -338,14 +346,14 @@ class AppState extends ChangeNotifier {
     isAchievementsLoading = true;
     notifyListeners();
     try {
-      final apiAchievements = await studentRepository.getAchievements(
+      final supabaseAchievements = await studentRepository.getAchievements(
         student.id,
       );
-      if (apiAchievements.isNotEmpty) achievements = apiAchievements;
+      if (supabaseAchievements.isNotEmpty) achievements = supabaseAchievements;
       achievementError = null;
     } catch (_) {
       achievementError =
-          'Tidak bisa mengambil prestasi dari API. Menampilkan fallback dummy.';
+          'Tidak bisa mengambil prestasi dari Supabase. Menampilkan fallback dummy.';
       achievements = achievements.isEmpty
           ? List<AchievementModel>.from(DummyData.achievements)
           : achievements;
@@ -355,39 +363,36 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<void> loadAdminDashboard() async {
-    isAdminLoading = true;
+  Future<void> loadApplicationHistory() async {
+    isApplicationHistoryLoading = true;
     notifyListeners();
     try {
-      final dashboard = await adminRepository.getDashboard();
-      adminStats = {
-        'Total Mahasiswa': dashboard.totalStudents,
-        'Total Tim': dashboard.totalTeams,
-        'Total Lomba': dashboard.totalCompetitions,
-        'Dosen Aktif': dashboard.totalLecturers,
-      };
-      categoryStats = dashboard.categoryStats.isEmpty
-          ? categoryStats
-          : dashboard.categoryStats;
-      pendingCompetitions = dashboard.pendingCompetitions;
-      adminError = null;
+      final requests = await teamRepository.getJoinRequests(student.id);
+      applicationHistory = requests
+          .map(
+            (request) => ApplicationHistoryItem(
+              id: request.id,
+              teamName: request.teamName,
+              competitionName: request.competitionName,
+              appliedRole: request.appliedRole,
+              matchingScore: request.matchingScore,
+              status: request.status,
+              createdLabel: 'Dari Supabase',
+            ),
+          )
+          .toList();
+      applicationHistoryError = null;
     } catch (_) {
-      adminError =
-          'Dashboard admin memakai data lokal karena API tidak tersedia.';
-      pendingCompetitions = pendingCompetitions.isEmpty
-          ? DummyData.competitions
-                .where(
-                  (competition) => competition.status == 'Menunggu Verifikasi',
-                )
-                .toList()
-          : pendingCompetitions;
+      applicationHistoryError =
+          'Riwayat ajuan memakai data lokal karena Supabase tidak tersedia.';
     } finally {
-      isAdminLoading = false;
+      isApplicationHistoryLoading = false;
       notifyListeners();
     }
   }
 
   Future<String> requestJoinTeamApi(String teamId) async {
+    final team = teamById(teamId);
     try {
       await teamRepository.joinRequest(
         teamId: teamId,
@@ -397,10 +402,12 @@ class AppState extends ChangeNotifier {
             'Saya ingin bergabung dan membantu pengembangan aplikasi serta pitching.',
       );
       requestJoinTeam(teamId);
-      return 'Request bergabung berhasil dikirim ke ketua tim.';
+      _addApplicationHistory(team, 'Menunggu', 'Dari Supabase');
+      return 'Request bergabung berhasil dikirim ke Supabase.';
     } catch (_) {
       requestJoinTeam(teamId);
-      return 'API belum tersambung. Request disimpan lokal sementara.';
+      _addApplicationHistory(team, 'Menunggu', 'Baru saja');
+      return 'Supabase belum tersambung. Request disimpan lokal sementara.';
     }
   }
 
@@ -416,10 +423,10 @@ class AppState extends ChangeNotifier {
         proposalLink: '',
       );
       requestLecturer(lecturerId);
-      return 'Request bimbingan berhasil dikirim.';
+      return 'Request bimbingan berhasil dikirim ke Supabase.';
     } catch (_) {
       requestLecturer(lecturerId);
-      return 'API belum tersambung. Request bimbingan disimpan lokal sementara.';
+      return 'Supabase belum tersambung. Request bimbingan disimpan lokal sementara.';
     }
   }
 
@@ -430,15 +437,9 @@ class AppState extends ChangeNotifier {
     required String skills,
     required String competition,
   }) async {
-    final selectedCompetition = competitions.firstWhere(
-      (item) => item.name == competition,
-      orElse: () => competitions.isNotEmpty
-          ? competitions.first
-          : DummyData.competitions.first,
-    );
     try {
       await teamRepository.createTeam(
-        competitionId: selectedCompetition.id,
+        competitionName: competition,
         leaderId: student.id,
         teamName: title,
         description: description,
@@ -453,7 +454,7 @@ class AppState extends ChangeNotifier {
         competition: competition,
       );
       await loadTeams();
-      return 'Postingan recruitment berhasil dipublikasikan ke API.';
+      return 'Postingan recruitment berhasil dipublikasikan ke Supabase.';
     } catch (_) {
       addPost(
         type: type,
@@ -462,7 +463,7 @@ class AppState extends ChangeNotifier {
         skills: skills,
         competition: competition,
       );
-      return 'API belum tersambung. Postingan disimpan lokal sementara.';
+      return 'Supabase belum tersambung. Postingan disimpan lokal sementara.';
     }
   }
 
@@ -478,24 +479,26 @@ class AppState extends ChangeNotifier {
         description: 'Prestasi ditambahkan dari aplikasi UPI Connect+.',
       );
       addAchievement(title);
-      return 'Prestasi berhasil ditambahkan ke API.';
+      return 'Prestasi berhasil ditambahkan ke Supabase.';
     } catch (_) {
       addAchievement(title);
-      return 'API belum tersambung. Prestasi disimpan lokal sementara.';
+      return 'Supabase belum tersambung. Prestasi disimpan lokal sementara.';
     }
   }
 
-  Future<String> verifyCompetitionApi(String competitionId) async {
+  Future<String> updateStudentSkills(List<String> skills) async {
     try {
-      await competitionRepository.verifyCompetition(
-        competitionId: competitionId,
-        verificationStatus: 'Terverifikasi',
+      await studentRepository.updateSkills(
+        studentId: student.id,
+        skills: skills,
       );
-      verifyCompetition(competitionId);
-      return 'Lomba berhasil diverifikasi.';
+      student = student.copyWith(skills: skills);
+      return 'Skill berhasil diperbarui di Supabase.';
     } catch (_) {
-      verifyCompetition(competitionId);
-      return 'API belum tersambung. Status verifikasi diubah lokal sementara.';
+      student = student.copyWith(skills: skills);
+      return 'Supabase belum tersambung. Skill diperbarui lokal sementara.';
+    } finally {
+      notifyListeners();
     }
   }
 
@@ -550,24 +553,6 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void verifyCompetition(String competitionId) {
-    final index = competitions.indexWhere(
-      (competition) => competition.id == competitionId,
-    );
-    if (index != -1) {
-      competitions[index] = competitions[index].copyWith(
-        status: 'Terverifikasi',
-      );
-    }
-    pendingCompetitions = pendingCompetitions.map((competition) {
-      if (competition.id == competitionId) {
-        return competition.copyWith(status: 'Terverifikasi');
-      }
-      return competition;
-    }).toList();
-    notifyListeners();
-  }
-
   void updateMentoringRequest(String requestId, String status) {
     final index = mentoringRequests.indexWhere(
       (request) => request.id == requestId,
@@ -595,9 +580,6 @@ class AppState extends ChangeNotifier {
       case UserRole.lecturer:
         lecturerUser = user;
         break;
-      case UserRole.admin:
-        adminUser = user;
-        break;
     }
   }
 
@@ -607,8 +589,6 @@ class AppState extends ChangeNotifier {
         return DummyData.student;
       case UserRole.lecturer:
         return DummyData.lecturerUser;
-      case UserRole.admin:
-        return DummyData.adminUser;
     }
   }
 
@@ -618,8 +598,6 @@ class AppState extends ChangeNotifier {
         return '/student';
       case UserRole.lecturer:
         return '/lecturer';
-      case UserRole.admin:
-        return '/admin';
     }
   }
 
@@ -651,5 +629,31 @@ class AppState extends ChangeNotifier {
     } else {
       lecturers[index] = lecturer;
     }
+  }
+
+  void _addApplicationHistory(
+    TeamModel team,
+    String status,
+    String createdLabel,
+  ) {
+    final existingIndex = applicationHistory.indexWhere(
+      (item) => item.id == team.id,
+    );
+    final item = ApplicationHistoryItem(
+      id: team.id,
+      teamName: team.name,
+      competitionName: team.competitionName,
+      appliedRole: 'Mobile Developer',
+      matchingScore: team.matchingScore,
+      status: status,
+      createdLabel: createdLabel,
+    );
+
+    if (existingIndex == -1) {
+      applicationHistory = [item, ...applicationHistory];
+    } else {
+      applicationHistory[existingIndex] = item;
+    }
+    notifyListeners();
   }
 }

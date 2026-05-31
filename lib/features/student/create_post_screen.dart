@@ -21,41 +21,26 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   final _skillsController = TextEditingController(
     text: 'Flutter, UI/UX, Pitching',
   );
+  final _competitionController = TextEditingController(text: 'GEMASTIK XVII');
 
   String _postType = 'Mencari Anggota';
-  String _competition = 'GEMASTIK XVII';
   bool _isPublishing = false;
 
-  final _postTypes = const [
-    'Mencari Tim',
-    'Mencari Anggota',
-    'Mencari Dosen Pembimbing',
-    'Mencari Informasi Lomba',
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) AppStateScope.of(context).loadCompetitions();
-    });
-  }
+  final _postTypes = const ['Mencari Tim', 'Mencari Anggota'];
 
   @override
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
     _skillsController.dispose();
+    _competitionController.dispose();
     super.dispose();
   }
 
   Future<void> _publish() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final state = AppStateScope.of(context);
-    final competitionName =
-        state.competitions.any((item) => item.name == _competition)
-        ? _competition
-        : state.competitions.first.name;
+    final competitionName = _competitionController.text.trim();
     setState(() => _isPublishing = true);
     final message = await state.publishRecruitmentPost(
       type: _postType,
@@ -76,14 +61,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   @override
   Widget build(BuildContext context) {
     final state = AppStateScope.of(context);
-    final competitionOptions = state.competitions
-        .map((item) => item.name)
-        .toList();
-    final dropdownCompetition = competitionOptions.contains(_competition)
-        ? _competition
-        : (competitionOptions.isNotEmpty
-              ? competitionOptions.first
-              : _competition);
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -94,7 +71,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             const Text('Buat Postingan', style: AppTextStyles.headline),
             const SizedBox(height: 8),
             Text(
-              'Publikasikan kebutuhan tim, anggota, dosen pembimbing, atau info lomba.',
+              'Publikasikan kebutuhan mencari tim atau mencari anggota.',
               style: AppTextStyles.body.copyWith(color: AppColors.textGray),
             ),
             const SizedBox(height: 18),
@@ -150,29 +127,16 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    if (state.isCompetitionsLoading) ...[
-                      const LinearProgressIndicator(
-                        minHeight: 4,
-                        color: AppColors.primaryBlue,
-                        backgroundColor: AppColors.lightBlue,
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-                    DropdownButtonFormField<String>(
-                      initialValue: dropdownCompetition,
+                    TextFormField(
+                      controller: _competitionController,
                       decoration: const InputDecoration(
                         labelText: 'Pilihan lomba',
+                        hintText: 'Contoh: GEMASTIK XVII',
                       ),
-                      items: competitionOptions
-                          .map(
-                            (competition) => DropdownMenuItem(
-                              value: competition,
-                              child: Text(competition),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) =>
-                          setState(() => _competition = value ?? _competition),
+                      validator: (value) =>
+                          value == null || value.trim().isEmpty
+                          ? 'Nama lomba wajib diisi'
+                          : null,
                     ),
                     const SizedBox(height: 20),
                     PrimaryButton(

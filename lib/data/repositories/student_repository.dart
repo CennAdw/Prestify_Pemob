@@ -1,26 +1,28 @@
-import '../../core/services/api_service.dart';
+import '../../core/services/supabase_service.dart';
 import '../models/achievement_model.dart';
 import '../models/student_model.dart';
 import 'repository_helpers.dart';
 
 class StudentRepository {
-  const StudentRepository({this.apiService = const ApiService()});
-
-  final ApiService apiService;
+  const StudentRepository();
 
   Future<StudentModel> getProfile(String userId) async {
-    final data = await apiService.get(
-      'students/get_profile.php',
-      queryParameters: {'user_id': userId},
-    );
-    return StudentModel.fromJson(asMap(data));
+    final data = await SupabaseService.client
+        .from('users')
+        .select()
+        .eq('id', userId)
+        .limit(1);
+    final users = asMapList(data);
+    if (users.isEmpty) throw StateError('Profil mahasiswa tidak ditemukan.');
+    return StudentModel.fromJson(users.first);
   }
 
   Future<List<AchievementModel>> getAchievements(String studentId) async {
-    final data = await apiService.get(
-      'achievements/get_achievements.php',
-      queryParameters: {'student_id': studentId},
-    );
+    final data = await SupabaseService.client
+        .from('achievements')
+        .select()
+        .eq('student_id', studentId)
+        .order('year', ascending: false);
     return asMapList(data).map(AchievementModel.fromJson).toList();
   }
 
@@ -33,14 +35,25 @@ class StudentRepository {
     required String year,
     required String description,
   }) async {
-    await apiService.post('achievements/create_achievement.php', {
+    await SupabaseService.client.from('achievements').insert({
       'student_id': studentId,
       'competition_name': competitionName,
       'award': award,
       'category': category,
       'level': level,
       'year': year,
+      'verification_status': 'Menunggu Verifikasi',
       'description': description,
     });
+  }
+
+  Future<void> updateSkills({
+    required String studentId,
+    required List<String> skills,
+  }) async {
+    await SupabaseService.client
+        .from('users')
+        .update({'skills': skills.join(', ')})
+        .eq('id', studentId);
   }
 }

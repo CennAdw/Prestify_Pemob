@@ -30,7 +30,7 @@ class StudentModel {
     return StudentModel(
       id: parseString(json['id'] ?? json['student_id']),
       user: UserModel.fromJson(json),
-      nim: parseString(json['nim']),
+      nim: parseString(json['nim'], fallback: '-'),
       faculty: parseString(json['faculty']),
       studyProgram: parseString(json['study_program']),
       batchYear: parseInt(json['batch_year'], fallback: 2024),

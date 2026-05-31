@@ -44,7 +44,7 @@ class TeamModel {
   final bool hasRequested;
 
   factory TeamModel.fromJson(Map<String, dynamic> json) {
-    final membersJson = json['members'];
+    final membersJson = json['members'] ?? json['team_members'];
     return TeamModel(
       id: parseString(json['id'] ?? json['team_id']),
       name: parseString(json['team_name'] ?? json['name']),
@@ -59,7 +59,7 @@ class TeamModel {
       ),
       currentMembers: parseInt(
         json['current_members'] ?? json['currentMembers'],
-        fallback: 0,
+        fallback: membersJson is List ? membersJson.length : 0,
       ),
       maxMembers: parseInt(
         json['max_members'] ?? json['maxMembers'],

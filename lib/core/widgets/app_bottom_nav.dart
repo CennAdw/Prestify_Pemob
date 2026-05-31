@@ -32,9 +32,9 @@ class AppBottomNav extends StatelessWidget {
           label: 'Buat',
         ),
         NavigationDestination(
-          icon: Icon(Icons.notifications_outlined),
-          selectedIcon: Icon(Icons.notifications),
-          label: 'Notifikasi',
+          icon: Icon(Icons.history_rounded),
+          selectedIcon: Icon(Icons.history),
+          label: 'Riwayat',
         ),
         NavigationDestination(
           icon: Icon(Icons.person_outline),

@@ -96,7 +96,11 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
               ),
             ),
             const SizedBox(height: 18),
-            const SectionHeader(title: 'Skill'),
+            SectionHeader(
+              title: 'Skill',
+              actionLabel: 'Edit',
+              onAction: () => _showEditSkillsDialog(context, student.skills),
+            ),
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
@@ -218,6 +222,52 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
               final message = await AppStateScope.of(
                 context,
               ).addAchievementApi(title);
+              if (!dialogContext.mounted) return;
+              Navigator.pop(dialogContext);
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text(message)));
+            },
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditSkillsDialog(BuildContext context, List<String> currentSkills) {
+    final controller = TextEditingController(text: currentSkills.join(', '));
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Update Skill'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          minLines: 2,
+          maxLines: 4,
+          decoration: const InputDecoration(
+            labelText: 'Skill yang dimiliki',
+            hintText: 'Contoh: Flutter, UI/UX, Pitching',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final skills = controller.text
+                  .split(',')
+                  .map((item) => item.trim())
+                  .where((item) => item.isNotEmpty)
+                  .toList();
+              if (skills.isEmpty) return;
+              final message = await AppStateScope.of(
+                context,
+              ).updateStudentSkills(skills);
               if (!dialogContext.mounted) return;
               Navigator.pop(dialogContext);
               if (!context.mounted) return;

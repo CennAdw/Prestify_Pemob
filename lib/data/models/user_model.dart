@@ -1,12 +1,10 @@
-enum UserRole { student, lecturer, admin }
+enum UserRole { student, lecturer }
 
 UserRole userRoleFromString(String value) {
   switch (value.toLowerCase()) {
     case 'lecturer':
     case 'dosen':
       return UserRole.lecturer;
-    case 'admin':
-      return UserRole.admin;
     case 'student':
     case 'mahasiswa':
     default:
@@ -21,8 +19,6 @@ extension UserRoleLabel on UserRole {
         return 'Mahasiswa';
       case UserRole.lecturer:
         return 'Dosen';
-      case UserRole.admin:
-        return 'Admin';
     }
   }
 }
@@ -34,8 +30,6 @@ extension UserRoleApiValue on UserRole {
         return 'student';
       case UserRole.lecturer:
         return 'lecturer';
-      case UserRole.admin:
-        return 'admin';
     }
   }
 }

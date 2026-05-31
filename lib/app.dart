@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'core/constants/app_colors.dart';
 import 'data/app_state.dart';
-import 'features/admin/admin_dashboard_screen.dart';
 import 'features/auth/login_screen.dart';
 import 'features/auth/splash_screen.dart';
 import 'features/lecturer/lecturer_dashboard_screen.dart';
@@ -43,7 +42,6 @@ class _UpiConnectAppState extends State<UpiConnectApp> {
           '/login': (_) => const LoginScreen(),
           '/student': (_) => const StudentShell(),
           '/lecturer': (_) => const LecturerDashboardScreen(),
-          '/admin': (_) => const AdminDashboardScreen(),
         },
       ),
     );

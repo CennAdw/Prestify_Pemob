@@ -1,17 +1,32 @@
-# upi_connect_plus
+# UPI Connect+
 
-A new Flutter project.
+Flutter MVP untuk mencari tim lomba, mengajukan bergabung ke tim, mencari dosen pembimbing, dan mengelola portofolio mahasiswa.
 
-## Getting Started
+## Supabase Setup
 
-This project is a starting point for a Flutter application.
+1. Buat project Supabase baru.
+2. Buka SQL Editor.
+3. Jalankan file `supabase/schema.sql`.
+4. Buka `lib/core/constants/supabase_config.dart`.
+5. Isi:
 
-A few resources to get you started if this is your first Flutter project:
+```dart
+const String supabaseUrl = 'https://PROJECT_ID.supabase.co';
+const String supabaseAnonKey = 'SUPABASE_ANON_KEY';
+```
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+Selama URL/key masih placeholder, aplikasi otomatis memakai fallback dummy.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Akun Demo
+
+- Mahasiswa: `candra@upi.edu` / `123456`
+- Dosen: `dosen@upi.edu` / `123456`
+
+## Jalankan App
+
+```powershell
+flutter pub get
+flutter run
+```
+
+Catatan: role admin, backend PHP Native, dan MySQL sudah dihapus dari versi ini.

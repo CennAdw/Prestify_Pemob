@@ -41,8 +41,6 @@ class _LoginScreenState extends State<LoginScreen> {
         return 'candra@upi.edu';
       case UserRole.lecturer:
         return 'dosen@upi.edu';
-      case UserRole.admin:
-        return 'admin@upi.edu';
     }
   }
 
@@ -175,7 +173,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       email: 'candra@upi.edu',
                     ),
                     _DummyAccountLine(label: 'Dosen', email: 'dosen@upi.edu'),
-                    _DummyAccountLine(label: 'Admin', email: 'admin@upi.edu'),
                   ],
                 ),
               ),
@@ -192,8 +189,6 @@ class _LoginScreenState extends State<LoginScreen> {
         return Icons.school_outlined;
       case UserRole.lecturer:
         return Icons.co_present_outlined;
-      case UserRole.admin:
-        return Icons.admin_panel_settings_outlined;
     }
   }
 }

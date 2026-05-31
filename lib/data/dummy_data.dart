@@ -24,13 +24,6 @@ class DummyData {
     role: UserRole.lecturer,
   );
 
-  static const adminUser = UserModel(
-    id: 'admin-rumah-prestasi',
-    name: 'Admin Rumah Prestasi',
-    email: 'admin@upi.edu',
-    role: UserRole.admin,
-  );
-
   static const teams = [
     TeamModel(
       id: 'team-nawasena',

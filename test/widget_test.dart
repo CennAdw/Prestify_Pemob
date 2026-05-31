@@ -38,18 +38,6 @@ void main() {
     expect(find.text('Request Bimbingan Masuk'), findsOneWidget);
   });
 
-  testWidgets('admin role opens admin dashboard', (WidgetTester tester) async {
-    await tester.pumpWidget(const UpiConnectApp());
-    await _openLogin(tester);
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Admin'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Login'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Dashboard Admin'), findsWidgets);
-    expect(find.text('Rumah Prestasi UPI'), findsOneWidget);
-  });
-
   testWidgets('student can request to join a team', (
     WidgetTester tester,
   ) async {
@@ -72,6 +60,20 @@ void main() {
     await tester.tap(find.text('Oke'));
     await tester.pumpAndSettle();
     expect(find.text('Menunggu Persetujuan'), findsOneWidget);
+  });
+
+  testWidgets('student can open application history page', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const UpiConnectApp());
+    await _openLogin(tester);
+    await tester.tap(find.text('Login'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Riwayat'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Riwayat Ajuan'), findsOneWidget);
   });
 }
 
