@@ -27,6 +27,7 @@ class TeamModel {
     required this.matchingScore,
     required this.status,
     required this.members,
+    this.leaderId = '',
     this.hasRequested = false,
   });
 
@@ -41,6 +42,7 @@ class TeamModel {
   final int matchingScore;
   final String status;
   final List<TeamMember> members;
+  final String leaderId;
   final bool hasRequested;
 
   factory TeamModel.fromJson(Map<String, dynamic> json) {
@@ -74,6 +76,7 @@ class TeamModel {
         json['recruitment_status'] ?? json['status'],
         fallback: 'Open Recruitment',
       ),
+      leaderId: parseString(json['leader_id'] ?? json['leaderId']),
       members: membersJson is List
           ? membersJson
                 .whereType<Map<String, dynamic>>()
@@ -97,6 +100,7 @@ class TeamModel {
     int? matchingScore,
     String? status,
     List<TeamMember>? members,
+    String? leaderId,
     bool? hasRequested,
   }) {
     return TeamModel(
@@ -111,6 +115,7 @@ class TeamModel {
       matchingScore: matchingScore ?? this.matchingScore,
       status: status ?? this.status,
       members: members ?? this.members,
+      leaderId: leaderId ?? this.leaderId,
       hasRequested: hasRequested ?? this.hasRequested,
     );
   }

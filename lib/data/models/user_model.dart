@@ -23,17 +23,6 @@ extension UserRoleLabel on UserRole {
   }
 }
 
-extension UserRoleApiValue on UserRole {
-  String get apiValue {
-    switch (this) {
-      case UserRole.student:
-        return 'student';
-      case UserRole.lecturer:
-        return 'lecturer';
-    }
-  }
-}
-
 class UserModel {
   const UserModel({
     required this.id,
@@ -84,19 +73,6 @@ class UserModel {
                 const []),
       avatarUrl: json['avatar_url']?.toString(),
     );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'email': email,
-      'role': role.apiValue,
-      'program': program,
-      'year': year,
-      'skills': skills,
-      'avatar_url': avatarUrl,
-    };
   }
 
   UserModel copyWith({

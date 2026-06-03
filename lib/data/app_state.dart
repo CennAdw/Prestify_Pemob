@@ -171,7 +171,7 @@ class AppState extends ChangeNotifier {
     );
   }
 
-  Future<LoginResult> signInWithGoogle({required UserRole selectedRole}) async {
+  Future<LoginResult> signInWithGoogle() async {
     isAuthLoading = true;
     notifyListeners();
 
@@ -198,14 +198,12 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<LoginResult> completeGoogleLogin({
-    required UserRole selectedRole,
-  }) async {
+  Future<LoginResult> completeGoogleLogin() async {
     isAuthLoading = true;
     notifyListeners();
 
     try {
-      final user = await authRepository.completeGoogleLogin(role: selectedRole);
+      final user = await authRepository.completeGoogleLogin();
       _setCurrentUser(user);
       apiNotice = null;
       return LoginResult(
@@ -432,10 +430,11 @@ class AppState extends ChangeNotifier {
   }
 
   Future<String> requestLecturerApi(String lecturerId) async {
-    final teamId = teams.isNotEmpty ? teams.first.id : '';
+    final ownedTeams = teams.where((team) => team.leaderId == student.id);
+    final teamId = ownedTeams.isNotEmpty ? ownedTeams.first.id : '';
     if (teamId.isEmpty) {
       const message =
-          'Gagal mengirim request bimbingan: data tim belum tersedia dari Supabase.';
+          'Gagal mengirim request bimbingan: buat tim terlebih dahulu agar request dapat dikirim oleh ketua tim.';
       debugPrint('[Supabase][requestLecturerApi] $message');
       return message;
     }

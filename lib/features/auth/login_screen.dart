@@ -9,7 +9,6 @@ import '../../core/constants/app_text_styles.dart';
 import '../../core/services/supabase_service.dart';
 import '../../core/widgets/custom_card.dart';
 import '../../core/widgets/primary_button.dart';
-import '../../data/models/user_model.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,7 +18,6 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  UserRole _selectedRole = UserRole.student;
   StreamSubscription<AuthState>? _authSubscription;
   bool _isCompletingLogin = false;
 
@@ -49,7 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _signInWithGoogle() async {
     final state = AppStateScope.of(context);
-    final result = await state.signInWithGoogle(selectedRole: _selectedRole);
+    final result = await state.signInWithGoogle();
     if (!mounted) return;
     ScaffoldMessenger.of(
       context,
@@ -60,7 +58,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (_isCompletingLogin) return;
     _isCompletingLogin = true;
     final state = AppStateScope.of(context);
-    final result = await state.completeGoogleLogin(selectedRole: _selectedRole);
+    final result = await state.completeGoogleLogin();
     _isCompletingLogin = false;
     if (!mounted) return;
     ScaffoldMessenger.of(
@@ -68,10 +66,6 @@ class _LoginScreenState extends State<LoginScreen> {
     ).showSnackBar(SnackBar(content: Text(result.message)));
     if (!result.success) return;
     Navigator.pushNamedAndRemoveUntil(context, result.route, (_) => false);
-  }
-
-  void _selectRole(UserRole role) {
-    setState(() => _selectedRole = role);
   }
 
   @override
@@ -102,7 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const Text('Masuk ke Prestify', style: AppTextStyles.headline),
               const SizedBox(height: 8),
               Text(
-                'Login menggunakan akun Google untuk mengakses fitur Prestify.',
+                'Login menggunakan akun Google untuk mengakses Prestify. Role akun ditentukan otomatis dari data terverifikasi.',
                 style: AppTextStyles.body.copyWith(color: AppColors.textGray),
               ),
               const SizedBox(height: 24),
@@ -110,36 +104,33 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Pilih Role', style: AppTextStyles.subtitle),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: UserRole.values.map((role) {
-                        final selected = role == _selectedRole;
-                        return ChoiceChip(
-                          label: Text(role.label),
-                          selected: selected,
-                          avatar: Icon(
-                            _iconForRole(role),
-                            size: 18,
-                            color: selected
-                                ? AppColors.white
-                                : AppColors.primaryBlue,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.verified_user_outlined,
+                          color: AppColors.primaryBlue,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Akses Terverifikasi',
+                                style: AppTextStyles.subtitle,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Akun dosen hanya dapat mengakses dashboard dosen jika emailnya sudah terdaftar oleh pengelola Prestify.',
+                                style: AppTextStyles.body.copyWith(
+                                  color: AppColors.textGray,
+                                ),
+                              ),
+                            ],
                           ),
-                          selectedColor: AppColors.primaryBlue,
-                          labelStyle: TextStyle(
-                            color: selected
-                                ? AppColors.white
-                                : AppColors.textDark,
-                            fontWeight: FontWeight.w700,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          onSelected: (_) => _selectRole(role),
-                        );
-                      }).toList(),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 20),
                     PrimaryButton(
@@ -167,14 +158,5 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
-  }
-
-  IconData _iconForRole(UserRole role) {
-    switch (role) {
-      case UserRole.student:
-        return Icons.school_outlined;
-      case UserRole.lecturer:
-        return Icons.co_present_outlined;
-    }
   }
 }

@@ -17,7 +17,7 @@ class AuthRepository {
     );
   }
 
-  Future<UserModel> completeGoogleLogin({required UserRole role}) async {
+  Future<UserModel> completeGoogleLogin() async {
     final client = SupabaseService.client;
     final authUser = client.auth.currentUser;
     if (authUser == null) {
@@ -29,34 +29,9 @@ class AuthRepository {
       throw StateError('Akun Google tidak mengirim alamat email.');
     }
 
-    final metadata = authUser.userMetadata ?? const <String, dynamic>{};
-    final name = _displayName(metadata, email);
-    final data = await client
-        .from('users')
-        .select()
-        .eq('id', authUser.id)
-        .limit(1);
-    final users = asMapList(data);
-    if (users.isNotEmpty) {
-      return UserModel.fromJson(users.first);
-    }
-
-    final payload = {
-      'id': authUser.id,
-      'name': name,
-      'email': email,
-      'role': role.apiValue,
-    };
-
-    await client.from('users').insert(payload);
-
-    if (role == UserRole.lecturer) {
-      await client.from('lecturers').insert({
-        'id': authUser.id,
-        'name': name,
-        'email': email,
-      });
-    }
+    // Role dibuat di database berdasarkan lecturer_allowlist. Aplikasi tidak
+    // pernah mengirim atau menentukan role pengguna.
+    await client.rpc('ensure_current_user_profile');
 
     final createdData = await client
         .from('users')
@@ -73,13 +48,5 @@ class AuthRepository {
 
   Future<void> signOut() {
     return SupabaseService.client.auth.signOut();
-  }
-
-  String _displayName(Map<String, dynamic> metadata, String email) {
-    final name =
-        metadata['full_name'] ?? metadata['name'] ?? metadata['display_name'];
-    final text = name?.toString().trim() ?? '';
-    if (text.isNotEmpty) return text;
-    return email.split('@').first;
   }
 }

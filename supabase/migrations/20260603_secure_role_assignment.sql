@@ -1,33 +1,8 @@
--- Jalankan file ini di Supabase SQL Editor.
--- Schema produksi awal: data kosong, autentikasi memakai Supabase Auth Google.
--- Aktifkan Google provider di Authentication > Providers sebelum digunakan.
--- Role tidak dipilih dari aplikasi. Email dosen harus dimasukkan ke
--- public.lecturer_allowlist oleh pengelola melalui SQL Editor.
+-- Jalankan migration ini jika schema Prestify sudah pernah dipasang.
+-- Role dosen hanya diberikan kepada email aktif di public.lecturer_allowlist.
+-- Akun lecturer lama yang belum ada di allowlist akan diubah menjadi student.
 
-create extension if not exists pgcrypto;
-
-drop trigger if exists on_auth_user_created on auth.users;
-drop function if exists public.handle_new_auth_user();
-drop function if exists public.ensure_current_user_profile();
-drop function if exists public.sync_user_profile(uuid, text, jsonb);
-drop function if exists public.current_user_role();
-drop function if exists public.is_verified_lecturer(uuid);
-
-drop table if exists public.achievements cascade;
-drop table if exists public.mentorship_requests cascade;
-drop table if exists public.join_requests cascade;
-drop table if exists public.team_members cascade;
-drop table if exists public.teams cascade;
-drop table if exists public.competitions cascade;
-drop table if exists public.lecturers cascade;
-drop table if exists public.users cascade;
-drop table if exists public.lecturer_allowlist cascade;
-
-drop policy if exists "profile photos select authenticated" on storage.objects;
-drop policy if exists "profile photos insert own folder" on storage.objects;
-drop policy if exists "profile photos update own folder" on storage.objects;
-
-create table public.lecturer_allowlist (
+create table if not exists public.lecturer_allowlist (
   email text primary key check (email = lower(btrim(email))),
   name text,
   nidn text,
@@ -38,116 +13,34 @@ create table public.lecturer_allowlist (
   updated_at timestamptz default now()
 );
 
-create table public.users (
-  id uuid primary key references auth.users(id) on delete cascade,
-  name text not null,
-  email text not null unique,
-  role text not null check (role in ('student', 'lecturer')),
-  study_program text,
-  batch_year integer,
-  skills text default '',
-  avatar_url text,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-);
+alter table public.lecturers
+add column if not exists nidn text;
 
-create table public.competitions (
-  id uuid primary key default gen_random_uuid(),
-  title text not null,
-  organizer text,
-  category text,
-  level text,
-  deadline text,
-  description text,
-  registration_link text,
-  verification_status text default 'Menunggu Verifikasi',
-  interest_count integer default 0,
-  created_by uuid references public.users(id) on delete set null,
-  created_at timestamptz default now()
-);
+-- Masukkan email dosen resmi sebelum bagian SECURITY RESET jika akun dosen
+-- yang sudah ada harus tetap menjadi lecturer.
+--
+-- insert into public.lecturer_allowlist (
+--   email, name, nidn, faculty, expertise
+-- ) values (
+--   'nama.dosen@upi.edu',
+--   'Nama Dosen',
+--   'NIDN',
+--   'Fakultas',
+--   'Mobile Development, Sistem Informasi'
+-- );
 
-create table public.lecturers (
-  id uuid primary key references public.users(id) on delete cascade,
-  name text not null,
-  email text unique,
-  nidn text,
-  faculty text,
-  expertise text default '',
-  mentoring_status text default 'Tersedia',
-  mentoring_quota integer default 5,
-  current_mentoring_count integer default 0,
-  experiences text default '',
-  bio text,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-);
-
-create table public.teams (
-  id uuid primary key default gen_random_uuid(),
-  competition_name text not null,
-  leader_id uuid references public.users(id) on delete set null,
-  team_name text not null,
-  description text,
-  required_roles text,
-  required_skills text default '',
-  recruitment_status text default 'Open Recruitment',
-  progress_status text default 'Recruiting',
-  mentor_id uuid references public.lecturers(id) on delete set null,
-  deadline text default 'Belum ditentukan',
-  matching_score integer default 0,
-  current_members integer default 1,
-  max_members integer default 5,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-);
-
-create table public.team_members (
-  id uuid primary key default gen_random_uuid(),
-  team_id uuid references public.teams(id) on delete cascade,
-  student_id uuid references public.users(id) on delete cascade,
-  name text not null,
-  role_in_team text not null,
-  joined_at timestamptz default now()
-);
-
-create table public.join_requests (
-  id uuid primary key default gen_random_uuid(),
-  team_id uuid references public.teams(id) on delete cascade,
-  student_id uuid references public.users(id) on delete cascade,
-  applied_role text not null,
-  message text,
-  matching_score integer default 0,
-  status text default 'Menunggu',
-  created_at timestamptz default now()
-);
-
-create table public.mentorship_requests (
-  id uuid primary key default gen_random_uuid(),
-  team_id uuid references public.teams(id) on delete cascade,
-  lecturer_id uuid references public.lecturers(id) on delete cascade,
-  proposal_title text not null,
-  proposal_summary text,
-  proposal_link text,
-  status text default 'Menunggu',
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-);
-
-create table public.achievements (
-  id uuid primary key default gen_random_uuid(),
-  student_id uuid references public.users(id) on delete cascade,
-  team_id uuid references public.teams(id) on delete set null,
-  competition_name text not null,
-  award text not null,
-  role_in_competition text,
-  category text,
-  level text,
-  year text,
-  certificate_link text,
-  verification_status text default 'Menunggu Verifikasi',
-  description text,
-  created_at timestamptz default now()
-);
+-- SECURITY RESET: role lecturer lama yang tidak terverifikasi diturunkan.
+update public.users
+set
+  role = 'student',
+  updated_at = now()
+where role = 'lecturer'
+  and not exists (
+    select 1
+    from public.lecturer_allowlist
+    where lecturer_allowlist.email = lower(btrim(users.email))
+      and lecturer_allowlist.is_active = true
+  );
 
 create or replace function public.sync_user_profile(
   p_user_id uuid,
@@ -312,6 +205,8 @@ as $$
   );
 $$;
 
+drop trigger if exists on_auth_user_created on auth.users;
+
 create trigger on_auth_user_created
 after insert or update of email on auth.users
 for each row execute procedure public.handle_new_auth_user();
@@ -332,18 +227,30 @@ grant execute on function public.current_user_role() to authenticated;
 grant execute on function public.is_verified_lecturer(uuid) to authenticated;
 
 alter table public.lecturer_allowlist enable row level security;
-alter table public.users enable row level security;
-alter table public.competitions enable row level security;
-alter table public.lecturers enable row level security;
-alter table public.teams enable row level security;
-alter table public.team_members enable row level security;
-alter table public.join_requests enable row level security;
-alter table public.mentorship_requests enable row level security;
-alter table public.achievements enable row level security;
 
-insert into storage.buckets (id, name, public)
-values ('profile-photos', 'profile-photos', true)
-on conflict (id) do nothing;
+drop policy if exists "users insert own profile" on public.users;
+drop policy if exists "users select own profile" on public.users;
+drop policy if exists "users update own profile" on public.users;
+drop policy if exists "competitions insert authenticated" on public.competitions;
+drop policy if exists "competitions insert student" on public.competitions;
+drop policy if exists "lecturers select authenticated" on public.lecturers;
+drop policy if exists "lecturers select verified" on public.lecturers;
+drop policy if exists "lecturers insert own profile" on public.lecturers;
+drop policy if exists "lecturers update own profile" on public.lecturers;
+drop policy if exists "teams insert own team" on public.teams;
+drop policy if exists "teams update own team" on public.teams;
+drop policy if exists "team_members insert authenticated" on public.team_members;
+drop policy if exists "team_members insert team leader" on public.team_members;
+drop policy if exists "join_requests select own" on public.join_requests;
+drop policy if exists "join_requests insert own" on public.join_requests;
+drop policy if exists "join_requests update team leader" on public.join_requests;
+drop policy if exists "mentorship_requests select lecturer" on public.mentorship_requests;
+drop policy if exists "mentorship_requests insert authenticated" on public.mentorship_requests;
+drop policy if exists "mentorship_requests insert team leader" on public.mentorship_requests;
+drop policy if exists "mentorship_requests update lecturer" on public.mentorship_requests;
+drop policy if exists "achievements select own" on public.achievements;
+drop policy if exists "achievements insert own" on public.achievements;
+drop policy if exists "achievements update own" on public.achievements;
 
 create policy "users select own profile"
 on public.users for select to authenticated
@@ -353,10 +260,6 @@ create policy "users update own profile"
 on public.users for update to authenticated
 using (auth.uid() = id)
 with check (auth.uid() = id);
-
-create policy "competitions select authenticated"
-on public.competitions for select to authenticated
-using (true);
 
 create policy "competitions insert student"
 on public.competitions for insert to authenticated
@@ -380,10 +283,6 @@ with check (
   and public.current_user_role() = 'lecturer'
 );
 
-create policy "teams select authenticated"
-on public.teams for select to authenticated
-using (true);
-
 create policy "teams insert own team"
 on public.teams for insert to authenticated
 with check (
@@ -401,10 +300,6 @@ with check (
   leader_id = auth.uid()
   and public.current_user_role() = 'student'
 );
-
-create policy "team_members select authenticated"
-on public.team_members for select to authenticated
-using (true);
 
 create policy "team_members insert team leader"
 on public.team_members for insert to authenticated
@@ -436,11 +331,11 @@ create policy "join_requests update team leader"
 on public.join_requests for update to authenticated
 using (
   public.current_user_role() = 'student'
-  and
-  exists (
-    select 1 from public.teams
+  and exists (
+    select 1
+    from public.teams
     where teams.id = join_requests.team_id
-    and teams.leader_id = auth.uid()
+      and teams.leader_id = auth.uid()
   )
 );
 
@@ -505,25 +400,3 @@ revoke insert, update on public.users from anon, authenticated;
 grant update (name, study_program, batch_year, skills, avatar_url, updated_at)
 on public.users to authenticated;
 revoke insert on public.lecturers from anon, authenticated;
-
-create policy "profile photos select authenticated"
-on storage.objects for select to authenticated
-using (bucket_id = 'profile-photos');
-
-create policy "profile photos insert own folder"
-on storage.objects for insert to authenticated
-with check (
-  bucket_id = 'profile-photos'
-  and (storage.foldername(name))[1] = auth.uid()::text
-);
-
-create policy "profile photos update own folder"
-on storage.objects for update to authenticated
-using (
-  bucket_id = 'profile-photos'
-  and (storage.foldername(name))[1] = auth.uid()::text
-)
-with check (
-  bucket_id = 'profile-photos'
-  and (storage.foldername(name))[1] = auth.uid()::text
-);

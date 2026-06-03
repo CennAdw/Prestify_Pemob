@@ -12,15 +12,14 @@ void main() {
     expect(find.text('Mulai'), findsOneWidget);
   });
 
-  testWidgets('login screen only offers student and lecturer roles', (
+  testWidgets('login screen explains verified automatic role access', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const UpiConnectApp());
     await _openLogin(tester);
 
-    expect(find.widgetWithText(ChoiceChip, 'Mahasiswa'), findsOneWidget);
-    expect(find.widgetWithText(ChoiceChip, 'Dosen'), findsOneWidget);
-    expect(find.widgetWithText(ChoiceChip, 'Admin'), findsNothing);
+    expect(find.text('Akses Terverifikasi'), findsOneWidget);
+    expect(find.byType(ChoiceChip), findsNothing);
     expect(find.text('Login menggunakan Google'), findsOneWidget);
     expect(find.text('Email / NIM'), findsNothing);
     expect(find.text('Password'), findsNothing);
