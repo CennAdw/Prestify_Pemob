@@ -47,6 +47,7 @@ class StudentRepository {
   Future<UserModel> updateProfile({
     required String userId,
     required String name,
+    required String faculty,
     required String studyProgram,
     required int? batchYear,
     required List<String> skills,
@@ -54,6 +55,7 @@ class StudentRepository {
   }) async {
     final payload = <String, dynamic>{
       'name': name,
+      'faculty': faculty,
       'study_program': studyProgram,
       'batch_year': batchYear,
       'skills': skills.join(', '),

@@ -73,6 +73,16 @@ class StudentHomeScreen extends StatelessWidget {
                       color: AppColors.white,
                     ),
                   ),
+                  if (student.nim != null && student.nim!.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'NIM ${student.nim}',
+                      style: AppTextStyles.small.copyWith(
+                        color: AppColors.lightBlue,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   Text(
                     'Temukan tim, dosen pembimbing, dan peluang lomba terbaik.',
@@ -119,7 +129,7 @@ class StudentHomeScreen extends StatelessWidget {
                                     ),
                                   ),
                                   Text(
-                                    '${student.program} - Angkatan ${student.year}',
+                                    'NIM ${student.nim ?? '-'} - ${student.program} - Angkatan ${student.year}',
                                     style: AppTextStyles.small.copyWith(
                                       color: AppColors.lightBlue,
                                     ),

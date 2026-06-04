@@ -1,11 +1,86 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
 
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../app.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
+import '../../core/services/supabase_service.dart';
 import '../../core/widgets/primary_button.dart';
+import 'verify_email_screen.dart';
 
-class SplashScreen extends StatelessWidget {
+class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  StreamSubscription<AuthState>? _authSubscription;
+  bool _isCheckingSession = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (SupabaseService.isReady) {
+      _authSubscription = SupabaseService.authStateChanges.listen((state) {
+        if (state.session != null && state.event != AuthChangeEvent.signedOut) {
+          _startSessionRestore();
+        }
+      });
+      if (SupabaseService.client.auth.currentSession != null) {
+        _startSessionRestore();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _startSessionRestore() {
+    if (_isCheckingSession) return;
+    _isCheckingSession = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _restoreSession();
+    });
+  }
+
+  Future<void> _restoreSession() async {
+    if (!SupabaseService.isReady ||
+        SupabaseService.client.auth.currentSession == null) {
+      if (mounted) setState(() => _isCheckingSession = false);
+      return;
+    }
+
+    final result = await AppStateScope.of(context).completeAuthenticatedLogin();
+    if (!mounted) return;
+    if (result.code == 'EMAIL_NOT_VERIFIED') {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => VerifyEmailScreen(
+            initialEmail: result.email ?? '',
+            emailLocked: result.email?.isNotEmpty ?? false,
+          ),
+        ),
+      );
+      return;
+    }
+    if (result.success) {
+      Navigator.pushNamedAndRemoveUntil(context, result.route, (_) => false);
+      return;
+    }
+
+    setState(() => _isCheckingSession = false);
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(result.message)));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -72,12 +147,15 @@ class SplashScreen extends StatelessWidget {
                 ),
                 const Spacer(),
                 PrimaryButton(
-                  label: 'Mulai',
-                  icon: Icons.arrow_forward_rounded,
+                  label: _isCheckingSession ? 'Memeriksa akun...' : 'Mulai',
+                  icon: _isCheckingSession
+                      ? Icons.hourglass_top_rounded
+                      : Icons.arrow_forward_rounded,
                   backgroundColor: AppColors.white,
                   foregroundColor: AppColors.primaryBlue,
-                  onPressed: () =>
-                      Navigator.pushReplacementNamed(context, '/login'),
+                  onPressed: _isCheckingSession
+                      ? null
+                      : () => Navigator.pushReplacementNamed(context, '/login'),
                 ),
               ],
             ),

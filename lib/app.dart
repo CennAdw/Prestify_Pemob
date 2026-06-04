@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'core/constants/app_colors.dart';
 import 'data/app_state.dart';
 import 'features/auth/login_screen.dart';
+import 'features/auth/registration_screen.dart';
 import 'features/auth/splash_screen.dart';
 import 'features/lecturer/lecturer_dashboard_screen.dart';
 import 'features/student/student_shell.dart';
@@ -40,6 +41,7 @@ class _UpiConnectAppState extends State<UpiConnectApp> {
         routes: {
           '/': (_) => const SplashScreen(),
           '/login': (_) => const LoginScreen(),
+          '/register': (_) => const RegistrationScreen(),
           '/student': (_) => const StudentShell(),
           '/lecturer': (_) => const LecturerDashboardScreen(),
         },

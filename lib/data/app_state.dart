@@ -66,11 +66,15 @@ class LoginResult {
     required this.success,
     required this.route,
     required this.message,
+    this.code,
+    this.email,
   });
 
   final bool success;
   final String route;
   final String message;
+  final String? code;
+  final String? email;
 }
 
 class AppState extends ChangeNotifier {
@@ -198,27 +202,166 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<LoginResult> completeGoogleLogin() async {
+  Future<LoginResult> signInWithNim({
+    required String identifier,
+    required String password,
+  }) async {
     isAuthLoading = true;
     notifyListeners();
 
     try {
-      final user = await authRepository.completeGoogleLogin();
-      _setCurrentUser(user);
+      final user = await authRepository.signInWithNim(
+        identifier: identifier,
+        password: password,
+      );
       apiNotice = null;
-      return LoginResult(
-        success: true,
-        route: _routeForRole(user.role),
-        message: 'Login Google berhasil.',
+      return await _loginResultForUser(user, successMessage: 'Login berhasil.');
+    } catch (error, stackTrace) {
+      _logSupabaseError('signInWithNim', error, stackTrace);
+      return _authFailure(error, prefix: 'Login gagal');
+    } finally {
+      isAuthLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<LoginResult> completeAuthenticatedLogin() async {
+    isAuthLoading = true;
+    notifyListeners();
+
+    try {
+      final user = await authRepository.completeAuthenticatedLogin();
+      apiNotice = null;
+      return await _loginResultForUser(
+        user,
+        successMessage: 'Login Google berhasil.',
       );
     } catch (error, stackTrace) {
-      _logSupabaseError('completeGoogleLogin', error, stackTrace);
-      apiNotice = 'Login Google gagal: $error';
-      return LoginResult(
-        success: false,
-        route: '',
-        message: 'Login Google gagal: $error',
+      _logSupabaseError('completeAuthenticatedLogin', error, stackTrace);
+      return _authFailure(error, prefix: 'Login Google gagal');
+    } finally {
+      isAuthLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<LoginResult> registerWithPassword({
+    required String email,
+    required String password,
+    required String name,
+    required String academicIdentifier,
+    required String faculty,
+    required String studyProgram,
+    required int? batchYear,
+    required List<String> skills,
+  }) async {
+    isAuthLoading = true;
+    notifyListeners();
+
+    try {
+      await authRepository.signUpWithPassword(email: email, password: password);
+      await authRepository.completeRegistration(
+        name: name,
+        academicIdentifier: academicIdentifier,
+        faculty: faculty,
+        studyProgram: studyProgram,
+        batchYear: batchYear,
+        skills: skills,
       );
+      final message = await authRepository.sendVerificationCode(email);
+      await authRepository.signOut();
+      return LoginResult(
+        success: true,
+        route: '/verify-email',
+        email: email.trim().toLowerCase(),
+        message: message,
+      );
+    } catch (error, stackTrace) {
+      _logSupabaseError('registerWithPassword', error, stackTrace);
+      try {
+        await authRepository.signOut();
+      } catch (signOutError, signOutStackTrace) {
+        _logSupabaseError(
+          'registerWithPassword.signOut',
+          signOutError,
+          signOutStackTrace,
+        );
+      }
+      return _authFailure(error, prefix: 'Pendaftaran gagal');
+    } finally {
+      isAuthLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<LoginResult> completeCurrentRegistration({
+    required String name,
+    required String academicIdentifier,
+    required String faculty,
+    required String studyProgram,
+    required int? batchYear,
+    required List<String> skills,
+  }) async {
+    isAuthLoading = true;
+    notifyListeners();
+
+    try {
+      final user = await authRepository.completeRegistration(
+        name: name,
+        academicIdentifier: academicIdentifier,
+        faculty: faculty,
+        studyProgram: studyProgram,
+        batchYear: batchYear,
+        skills: skills,
+      );
+      return await _loginResultForUser(
+        user,
+        successMessage: 'Profil pendaftaran berhasil dilengkapi.',
+      );
+    } catch (error, stackTrace) {
+      _logSupabaseError('completeCurrentRegistration', error, stackTrace);
+      return _authFailure(error, prefix: 'Pendaftaran gagal');
+    } finally {
+      isAuthLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<LoginResult> sendVerificationCode(String email) async {
+    isAuthLoading = true;
+    notifyListeners();
+    try {
+      final message = await authRepository.sendVerificationCode(email);
+      return LoginResult(success: true, route: '', message: message);
+    } catch (error, stackTrace) {
+      _logSupabaseError('sendVerificationCode', error, stackTrace);
+      return _authFailure(error, prefix: 'Kode gagal dikirim');
+    } finally {
+      isAuthLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<LoginResult> verifyEmailCode({
+    required String email,
+    required String code,
+  }) async {
+    isAuthLoading = true;
+    notifyListeners();
+    try {
+      final message = await authRepository.verifyEmailCode(
+        email: email,
+        code: code,
+      );
+      return LoginResult(
+        success: true,
+        route: '/login',
+        email: email.trim().toLowerCase(),
+        message: message,
+      );
+    } catch (error, stackTrace) {
+      _logSupabaseError('verifyEmailCode', error, stackTrace);
+      return _authFailure(error, prefix: 'Verifikasi gagal');
     } finally {
       isAuthLoading = false;
       notifyListeners();
@@ -515,6 +658,7 @@ class AppState extends ChangeNotifier {
       student = await studentRepository.updateProfile(
         userId: student.id,
         name: student.name,
+        faculty: student.faculty ?? '',
         studyProgram: student.program ?? '',
         batchYear: student.year,
         skills: skills,
@@ -529,6 +673,7 @@ class AppState extends ChangeNotifier {
 
   Future<String> updateStudentProfile({
     required String name,
+    required String faculty,
     required String studyProgram,
     required int? batchYear,
     required List<String> skills,
@@ -537,6 +682,7 @@ class AppState extends ChangeNotifier {
       student = await studentRepository.updateProfile(
         userId: student.id,
         name: name,
+        faculty: faculty,
         studyProgram: studyProgram,
         batchYear: batchYear,
         skills: skills,
@@ -564,6 +710,7 @@ class AppState extends ChangeNotifier {
       student = await studentRepository.updateProfile(
         userId: student.id,
         name: student.name,
+        faculty: student.faculty ?? '',
         studyProgram: student.program ?? '',
         batchYear: student.year,
         skills: student.skills,
@@ -613,6 +760,52 @@ class AppState extends ChangeNotifier {
       _logSupabaseError('updateMentoringRequest', error, stackTrace);
       return 'Gagal memperbarui status request: $error';
     }
+  }
+
+  Future<LoginResult> _loginResultForUser(
+    UserModel user, {
+    required String successMessage,
+  }) async {
+    if (!user.emailVerified) {
+      await authRepository.signOut();
+      return LoginResult(
+        success: false,
+        route: '/verify-email',
+        code: 'EMAIL_NOT_VERIFIED',
+        email: user.email,
+        message:
+            'Email belum diverifikasi. Masukkan kode yang dikirim ke email UPI.',
+      );
+    }
+
+    _setCurrentUser(user);
+    if (!user.registrationCompleted) {
+      return const LoginResult(
+        success: true,
+        route: '/register',
+        message: 'Lengkapi data pendaftaran untuk melanjutkan.',
+      );
+    }
+
+    return LoginResult(
+      success: true,
+      route: _routeForRole(user.role),
+      message: successMessage,
+    );
+  }
+
+  LoginResult _authFailure(Object error, {required String prefix}) {
+    apiNotice = '$prefix: $error';
+    if (error is AuthRepositoryException) {
+      return LoginResult(
+        success: false,
+        route: '',
+        code: error.code,
+        email: error.email,
+        message: '$prefix: ${error.message}',
+      );
+    }
+    return LoginResult(success: false, route: '', message: '$prefix: $error');
   }
 
   void _setCurrentUser(UserModel user) {

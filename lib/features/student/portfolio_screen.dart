@@ -181,6 +181,9 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   void _showEditProfileDialog(BuildContext context, UserModel student) {
     final formKey = GlobalKey<FormState>();
     final nameController = TextEditingController(text: student.name);
+    final facultyController = TextEditingController(
+      text: student.faculty ?? '',
+    );
     final programController = TextEditingController(
       text: student.program ?? '',
     );
@@ -208,6 +211,21 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                   validator: (value) => value == null || value.trim().isEmpty
                       ? 'Nama wajib diisi'
                       : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  initialValue: student.nim ?? '',
+                  readOnly: true,
+                  decoration: const InputDecoration(
+                    labelText: 'NIM',
+                    helperText:
+                        'NIM digunakan untuk login dan tidak dapat diubah dari profil.',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: facultyController,
+                  decoration: const InputDecoration(labelText: 'Fakultas'),
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
@@ -250,6 +268,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
               final message = await AppStateScope.of(context)
                   .updateStudentProfile(
                     name: nameController.text.trim(),
+                    faculty: facultyController.text.trim(),
                     studyProgram: programController.text.trim(),
                     batchYear: int.tryParse(yearController.text.trim()),
                     skills: skills,
@@ -422,6 +441,9 @@ class _ProfileCard extends StatelessWidget {
     final program = student.program?.trim();
     final year = student.year?.toString();
     final subtitle = [
+      if (student.nim != null && student.nim!.isNotEmpty) 'NIM ${student.nim}',
+      if (student.faculty != null && student.faculty!.isNotEmpty)
+        student.faculty!,
       if (program != null && program.isNotEmpty) program,
       if (year != null && year.isNotEmpty) 'Angkatan $year',
     ].join(' - ');
