@@ -5,7 +5,6 @@ class JoinRequestModel {
     required this.id,
     required this.teamId,
     required this.studentId,
-    required this.appliedRole,
     required this.message,
     required this.matchingScore,
     required this.status,
@@ -13,12 +12,13 @@ class JoinRequestModel {
     this.competitionName = '',
     this.studentName = '',
     this.studentAvatarUrl = '',
+    this.skills = const [],
+    this.portfolioUrl,
   });
 
   final String id;
   final String teamId;
   final String studentId;
-  final String appliedRole;
   final String message;
   final int matchingScore;
   final String status;
@@ -26,6 +26,8 @@ class JoinRequestModel {
   final String competitionName;
   final String studentName;
   final String studentAvatarUrl;
+  final List<String> skills;
+  final String? portfolioUrl;
 
   factory JoinRequestModel.fromJson(Map<String, dynamic> json) {
     final team = json['teams'] is Map<String, dynamic>
@@ -40,7 +42,6 @@ class JoinRequestModel {
       id: parseString(json['id']),
       teamId: parseString(json['team_id']),
       studentId: parseString(json['student_id']),
-      appliedRole: parseString(json['applied_role']),
       message: parseString(json['message']),
       matchingScore: parseInt(json['matching_score']),
       status: parseString(json['status'], fallback: 'pending'),
@@ -50,6 +51,8 @@ class JoinRequestModel {
       ),
       studentName: parseString(student['name']),
       studentAvatarUrl: parseString(student['avatar_url']),
+      skills: parseStringList(student['skills']),
+      portfolioUrl: student['portfolio_url'] as String?,
     );
   }
 }

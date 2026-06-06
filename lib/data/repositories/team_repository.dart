@@ -67,6 +67,7 @@ class TeamRepository {
     required String leaderId,
     required String teamName,
     required String description,
+    required int maxMembers,
     required String requiredSkills,
     required String requiredRoles,
     String? posterUrl,
@@ -79,13 +80,13 @@ class TeamRepository {
       'description': description,
       'required_skills': requiredSkills,
       'required_roles': requiredRoles,
+      'max_members': maxMembers,
       'poster_url': posterUrl,
       'notes': notes,
       'recruitment_status': 'Open Recruitment',
       'progress_status': 'Recruiting',
       'matching_score': 0,
       'current_members': 1,
-      'max_members': 5,
       'deadline': 'Belum ditentukan',
     }).select('id').limit(1).maybeSingle();
 
@@ -151,15 +152,15 @@ class TeamRepository {
     return asMapList(data).map(JoinRequestModel.fromJson).toList();
   }
 
-  Future<List<JoinRequestModel>> getTeamJoinRequests(String teamId) async {
-    final data = await SupabaseService.client
-        .from('join_requests')
-        .select('*, users(name, avatar_url), teams(team_name, competition_name)')
-        .eq('team_id', teamId)
-        .order('created_at', ascending: true);
+Future<List<JoinRequestModel>> getTeamJoinRequests(String teamId) async {
+  final data = await SupabaseService.client
+      .from('join_requests')
+      .select('*, users(name, avatar_url, skills, portfolio_url), teams(team_name, competition_name)')
+      .eq('team_id', teamId)
+      .order('created_at', ascending: true);
 
-    return asMapList(data).map(JoinRequestModel.fromJson).toList();
-  }
+  return asMapList(data).map(JoinRequestModel.fromJson).toList();
+}
 
   Future<void> respondJoinRequest({
     required String requestId,
@@ -167,7 +168,7 @@ class TeamRepository {
   }) async {
     final requestData = await SupabaseService.client
         .from('join_requests')
-        .select('team_id, student_id, applied_role')
+        .select('team_id, student_id')
         .eq('id', requestId)
         .limit(1)
         .maybeSingle();
@@ -192,7 +193,7 @@ class TeamRepository {
         'team_id': requestData['team_id'],
         'student_id': requestData['student_id'],
         'name': name,
-        'role_in_team': requestData['applied_role'],
+        'role_in_team': 'Anggota',
       });
 
       final teamData = await SupabaseService.client

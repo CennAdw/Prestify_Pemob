@@ -33,7 +33,7 @@ class AuthRepository {
     required String identifier,
     required String password,
   }) async {
-    final data = await _invokeMap(
+    final data = await _invokeMapAnon(
       'login-with-nim',
       body: {
         'identifier': normalizeAcademicIdentifier(identifier),
@@ -173,7 +173,11 @@ class AuthRepository {
       final response = await SupabaseService.client.functions.invoke(
         functionName,
         body: body,
-        headers: token != null ? {'Authorization': 'Bearer $token'} : null,
+        headers: {
+        'Authorization': token != null
+            ? 'Bearer $token'
+            : 'Bearer $supabaseAnonKey',
+      },
       );
       final data = response.data;
       if (data is Map<String, dynamic>) return data;

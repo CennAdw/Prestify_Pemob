@@ -36,7 +36,6 @@ class _LoginScreenState extends State<LoginScreen> {
           _completeAuthenticatedLogin();
         }
       });
-
       if (SupabaseService.client.auth.currentSession != null) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) _completeAuthenticatedLogin();
@@ -87,7 +86,6 @@ class _LoginScreenState extends State<LoginScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(result.message)));
-
     if (!result.success) return;
     Navigator.pushNamedAndRemoveUntil(context, result.route, (_) => false);
   }
@@ -95,66 +93,139 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final state = AppStateScope.of(context);
+
     return Scaffold(
+      backgroundColor: AppColors.backgroundSoftGray,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 28),
-                Container(
-                  width: 54,
-                  height: 54,
-                  padding: const EdgeInsets.all(9),
-                  decoration: BoxDecoration(
-                    color: Colors.black,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Image.asset(
-                    'assets/images/prestify_logo.png',
-                    fit: BoxFit.contain,
-                  ),
+                // Logo & brand
+                Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryBlue,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Image.asset(
+                        'assets/images/prestify_logo.png',
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Prestify',
+                      style: AppTextStyles.title.copyWith(
+                        color: AppColors.primaryBlue,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 22),
-                const Text('Masuk ke Prestify', style: AppTextStyles.headline),
+                const SizedBox(height: 36),
+                Text('Selamat datang\nkembali 👋', style: AppTextStyles.display),
                 const SizedBox(height: 8),
                 Text(
-                  'Gunakan NIM atau NIDN dan password, atau lanjutkan dengan akun Google @upi.edu.',
+                  'Masuk dengan NIM/NIDN dan password, atau akun Google @upi.edu.',
                   style: AppTextStyles.body.copyWith(color: AppColors.textGray),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 32),
+
+                // Form card
                 CustomCard(
+                  elevation: 2,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Text(
+                        'Login',
+                        style: AppTextStyles.subtitle.copyWith(
+                          color: AppColors.textDark,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                       TextFormField(
                         controller: _identifierController,
                         keyboardType: TextInputType.number,
                         autofillHints: const [AutofillHints.username],
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'NIM / NIDN',
-                          prefixIcon: Icon(Icons.badge_outlined),
+                          hintText: 'Masukkan NIM atau NIDN',
+                          prefixIcon: const Icon(
+                            Icons.badge_outlined,
+                            color: AppColors.primaryBlue,
+                          ),
+                          filled: true,
+                          fillColor: AppColors.backgroundSoftGray,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: AppColors.borderLight,
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: AppColors.borderLight,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                              color: AppColors.primaryBlue,
+                              width: 1.5,
+                            ),
+                          ),
                         ),
                         validator: (value) =>
                             value == null || value.trim().isEmpty
                             ? 'NIM atau NIDN wajib diisi'
                             : null,
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 14),
                       TextFormField(
                         controller: _passwordController,
                         obscureText: !_passwordVisible,
                         autofillHints: const [AutofillHints.password],
                         decoration: InputDecoration(
                           labelText: 'Password',
-                          prefixIcon: const Icon(Icons.lock_outline_rounded),
+                          prefixIcon: const Icon(
+                            Icons.lock_outline_rounded,
+                            color: AppColors.primaryBlue,
+                          ),
+                          filled: true,
+                          fillColor: AppColors.backgroundSoftGray,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: AppColors.borderLight,
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: AppColors.borderLight,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                              color: AppColors.primaryBlue,
+                              width: 1.5,
+                            ),
+                          ),
                           suffixIcon: IconButton(
                             tooltip: _passwordVisible
-                                ? 'Sembunyikan password'
-                                : 'Tampilkan password',
+                                ? 'Sembunyikan'
+                                : 'Tampilkan',
                             onPressed: () => setState(
                               () => _passwordVisible = !_passwordVisible,
                             ),
@@ -162,6 +233,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               _passwordVisible
                                   ? Icons.visibility_off_outlined
                                   : Icons.visibility_outlined,
+                              color: AppColors.textGray,
                             ),
                           ),
                         ),
@@ -169,28 +241,44 @@ class _LoginScreenState extends State<LoginScreen> {
                             ? 'Password wajib diisi'
                             : null,
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 20),
                       PrimaryButton(
                         label: state.isAuthLoading ? 'Masuk...' : 'Masuk',
                         icon: Icons.login_rounded,
                         onPressed: state.isAuthLoading ? null : _signInWithNim,
                       ),
                       const SizedBox(height: 16),
+                      // Divider
                       Row(
                         children: [
-                          const Expanded(child: Divider()),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            child: Text('atau', style: AppTextStyles.muted),
+                          Expanded(
+                            child: Divider(
+                              color: AppColors.borderLight,
+                              thickness: 1,
+                            ),
                           ),
-                          const Expanded(child: Divider()),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            child: Text(
+                              'atau',
+                              style: AppTextStyles.small.copyWith(
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Divider(
+                              color: AppColors.borderLight,
+                              thickness: 1,
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 16),
                       PrimaryButton(
                         label: state.isAuthLoading
                             ? 'Menghubungkan...'
-                            : 'Login menggunakan Google',
+                            : 'Lanjutkan dengan Google',
                         outlined: true,
                         icon: Icons.account_circle_outlined,
                         onPressed: state.isAuthLoading
@@ -200,32 +288,67 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text('Belum punya akun?', style: AppTextStyles.body),
-                    TextButton(
-                      onPressed: state.isAuthLoading
-                          ? null
-                          : () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const RegistrationScreen(),
+
+                const SizedBox(height: 20),
+                // Register link
+                Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Belum punya akun?',
+                        style: AppTextStyles.body.copyWith(
+                          color: AppColors.textGray,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: state.isAuthLoading
+                            ? null
+                            : () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const RegistrationScreen(),
+                                ),
                               ),
-                            ),
-                      child: const Text('Daftar sekarang'),
-                    ),
-                  ],
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.primaryBlue,
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                        ),
+                        child: const Text(
+                          'Daftar sekarang',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 8),
-                CustomCard(
-                  color: AppColors.lightBlue,
-                  child: Text(
-                    'Hanya email @upi.edu yang dapat digunakan. Role dosen ditentukan otomatis dari daftar dosen terverifikasi.',
-                    style: AppTextStyles.body.copyWith(
-                      color: AppColors.primaryBlue,
-                    ),
+                // Info banner
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceElevated,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.borderFocus),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.info_outline_rounded,
+                        color: AppColors.primaryBlue,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Hanya email @upi.edu yang dapat digunakan. Role dosen ditentukan otomatis dari daftar dosen terverifikasi.',
+                          style: AppTextStyles.small.copyWith(
+                            color: AppColors.primaryBlue,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],

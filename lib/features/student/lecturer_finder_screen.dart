@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../app.dart';
@@ -154,31 +157,13 @@ class _LecturerCard extends StatelessWidget {
                   label: lecturer.hasRequested
                       ? 'Request Terkirim'
                       : lecturer.isAvailable
-                      ? 'Ajukan'
-                      : 'Kuota Penuh',
+                          ? 'Ajukan'
+                          : 'Kuota Penuh',
                   icon: lecturer.hasRequested
                       ? Icons.check_circle_rounded
                       : Icons.send_rounded,
                   onPressed: isActionEnabled
-                      ? () async {
-                          final message = await state.requestLecturerApi(
-                            lecturer.id,
-                          );
-                          if (!context.mounted) return;
-                          showDialog<void>(
-                            context: context,
-                            builder: (_) => AlertDialog(
-                              title: const Text('Berhasil'),
-                              content: Text(message),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context),
-                                  child: const Text('Oke'),
-                                ),
-                              ],
-                            ),
-                          );
-                        }
+                      ? () => _showProposalForm(context, state, lecturer)
                       : null,
                 ),
               ),
@@ -188,4 +173,266 @@ class _LecturerCard extends StatelessWidget {
       ),
     );
   }
+
+  /// Menampilkan form proposal: judul, ringkasan, dan upload PDF ≤ 10 MB.
+  Future<void> _showProposalForm(
+    BuildContext context,
+    dynamic state,
+    LecturerModel lecturer,
+  ) async {
+    final titleCtrl = TextEditingController();
+    final summaryCtrl = TextEditingController();
+    File? pickedPdf;
+    String? pdfName;
+    String? pdfError;
+    
+    // Get teams where student is leader
+    final ownedTeams = List.from(state.teams.where((t) => t.leaderId == state.student.id));
+    String? selectedTeamId = ownedTeams.isNotEmpty ? ownedTeams.first.id : null;
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            Future<void> pickPdf() async {
+              final result = await FilePicker.platform.pickFiles(
+                type: FileType.custom,
+                allowedExtensions: ['pdf'],
+              );
+              if (result == null || result.files.single.path == null) return;
+              final file = File(result.files.single.path!);
+              final bytes = await file.length();
+              const maxBytes = 10 * 1024 * 1024; // 10 MB
+              if (bytes > maxBytes) {
+                setDialogState(() {
+                  pdfError = 'File melebihi batas 10 MB.';
+                  pickedPdf = null;
+                  pdfName = null;
+                });
+                return;
+              }
+              setDialogState(() {
+                pickedPdf = file;
+                pdfName = result.files.single.name;
+                pdfError = null;
+              });
+            }
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              title: Text('Ajukan ke ${lecturer.name}'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Team Selection (if student is leader in multiple teams)
+                    if (ownedTeams.length > 1) ...[
+                      const Text('Pilih Tim', style: AppTextStyles.subtitle),
+                      const SizedBox(height: 8),
+                      ...ownedTeams.map((team) => RadioListTile<String>(
+                        title: Text('${team.name} (${team.competitionName})'),
+                        value: team.id,
+                        groupValue: selectedTeamId,
+                        onChanged: (value) {
+                          setDialogState(() {
+                            selectedTeamId = value;
+                          });
+                        },
+                      )),
+                      const SizedBox(height: 16),
+                    ],
+                    // Judul Proposal
+                    const Text('Judul Proposal', style: AppTextStyles.subtitle),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: titleCtrl,
+                      decoration: _inputDecor('Masukkan judul proposal...'),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Ringkasan
+                    const Text('Ringkasan Proposal', style: AppTextStyles.subtitle),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: summaryCtrl,
+                      minLines: 3,
+                      maxLines: 6,
+                      decoration: _inputDecor(
+                        'Deskripsikan ide, tujuan, dan kebutuhan bimbingan...',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Upload PDF
+                    const Text('File Proposal (PDF)', style: AppTextStyles.subtitle),
+                    const SizedBox(height: 8),
+                    GestureDetector(
+                      onTap: pickPdf,
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.backgroundSoftGray,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: pdfError != null
+                                ? AppColors.alertCoral
+                                : AppColors.borderLight,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              pickedPdf != null
+                                  ? Icons.picture_as_pdf_rounded
+                                  : Icons.upload_file_rounded,
+                              color: pickedPdf != null
+                                  ? AppColors.alertCoral
+                                  : AppColors.primaryBlue,
+                              size: 22,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                pdfName ?? 'Pilih file PDF (maks 10 MB)',
+                                style: AppTextStyles.body.copyWith(
+                                  color: pickedPdf != null
+                                      ? AppColors.textBody
+                                      : AppColors.textHint,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (pickedPdf != null)
+                              GestureDetector(
+                                onTap: () => setDialogState(() {
+                                  pickedPdf = null;
+                                  pdfName = null;
+                                  pdfError = null;
+                                }),
+                                child: const Icon(
+                                  Icons.close_rounded,
+                                  size: 18,
+                                  color: AppColors.textGray,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (pdfError != null) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        pdfError!,
+                        style: AppTextStyles.small.copyWith(
+                          color: AppColors.alertCoral,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Batal'),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    final title = titleCtrl.text.trim();
+                    final summary = summaryCtrl.text.trim();
+                    if (title.isEmpty || summary.isEmpty) {
+                      ScaffoldMessenger.of(ctx).showSnackBar(
+                        const SnackBar(
+                          content: Text('Judul dan ringkasan wajib diisi.'),
+                        ),
+                      );
+                      return;
+                    }
+                    // Validate team selection if multiple teams exist
+                    if (ownedTeams.length > 1 && selectedTeamId == null) {
+                      ScaffoldMessenger.of(ctx).showSnackBar(
+                        const SnackBar(
+                          content: Text('Silakan pilih tim untuk proposal.'),
+                        ),
+                      );
+                      return;
+                    }
+                    Navigator.pop(ctx, true);
+                  },
+                  child: const Text('Kirim'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    titleCtrl.dispose();
+    summaryCtrl.dispose();
+
+    if (result != true) return;
+
+    // Upload PDF dulu jika ada, dapat URL-nya
+    String proposalLink = '';
+    if (pickedPdf != null) {
+      proposalLink = await state.uploadProposalPdf(
+        pickedPdf!,
+        lecturer.id,
+      ) ?? '';
+    }
+
+    final message = await state.requestLecturerApi(
+      lecturer.id,
+      proposalTitle: titleCtrl.text.trim(),
+      proposalSummary: summaryCtrl.text.trim(),
+      proposalLink: proposalLink,
+      teamId: selectedTeamId,
+    );
+    if (!context.mounted) return;
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Berhasil'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Oke'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  InputDecoration _inputDecor(String hint) => InputDecoration(
+        hintText: hint,
+        hintStyle: AppTextStyles.body.copyWith(color: AppColors.textHint),
+        filled: true,
+        fillColor: AppColors.backgroundSoftGray,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 12,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.borderLight),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.borderLight),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.primaryBlue, width: 1.5),
+        ),
+      );
 }

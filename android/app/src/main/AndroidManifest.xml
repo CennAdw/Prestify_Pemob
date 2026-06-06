@@ -32,7 +32,7 @@
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data
-                    android:scheme="id.upi.connect.upi_connect_plus"
+                    android:scheme="id.upi.prestify"
                     android:host="login-callback"/>
             </intent-filter>
         </activity>

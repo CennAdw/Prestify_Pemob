@@ -31,6 +31,10 @@ class UserModel {
     required this.role,
     this.nim,
     this.faculty,
+    this.currentQuota = 0,
+    this.maxQuota = 0,
+    this.expertise = const [],
+    this.experiences = const [],
     this.program,
     this.year,
     this.skills = const [],
@@ -39,7 +43,10 @@ class UserModel {
     this.emailVerified = false,
     this.registrationCompleted = false,
   });
-
+  final int currentQuota;
+  final int maxQuota;
+  final List<String> expertise;
+  final List<String> experiences;
   final String id;
   final String name;
   final String email;
@@ -85,6 +92,30 @@ class UserModel {
                 const []),
       avatarUrl: json['avatar_url']?.toString(),
       portfolioUrl: json['portfolio_url']?.toString(),
+      currentQuota: json['current_mentoring_count'] is int
+        ? json['current_mentoring_count']
+        : int.tryParse(
+              json['current_mentoring_count']?.toString() ?? '',
+          ) ??
+          0,
+        maxQuota: json['mentoring_quota'] is int
+            ? json['mentoring_quota']
+            : int.tryParse(
+                  json['mentoring_quota']?.toString() ?? '',
+              ) ??
+              0,
+
+        expertise: json['expertise'] is List
+            ? (json['expertise'] as List)
+                .map((e) => e.toString())
+                .toList()
+            : [],
+
+        experiences: json['experiences'] is List
+            ? (json['experiences'] as List)
+                .map((e) => e.toString())
+                .toList()
+            : [],
       emailVerified: json['email_verified_at'] != null,
       registrationCompleted: json['registration_completed'] == true,
     );
@@ -104,6 +135,10 @@ class UserModel {
     String? portfolioUrl,
     bool? emailVerified,
     bool? registrationCompleted,
+    int? currentQuota,
+    int? maxQuota,
+    List<String>? expertise,
+    List<String>? experiences,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -114,6 +149,10 @@ class UserModel {
       faculty: faculty ?? this.faculty,
       program: program ?? this.program,
       year: year ?? this.year,
+      currentQuota: currentQuota ?? this.currentQuota,
+      maxQuota: maxQuota ?? this.maxQuota,
+      expertise: expertise ?? this.expertise,
+      experiences: experiences ?? this.experiences,
       skills: skills ?? this.skills,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       portfolioUrl: portfolioUrl ?? this.portfolioUrl,

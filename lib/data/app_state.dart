@@ -1,63 +1,77 @@
-
 import 'package:flutter/foundation.dart';
 
 import 'models/achievement_model.dart';
+import 'models/anggota_post_model.dart';
 import 'models/competition_model.dart';
 import 'models/lecturer_model.dart';
 import 'models/mentorship_request_model.dart';
 import 'models/team_model.dart';
 import 'models/user_model.dart';
+import 'repositories/anggota_post_repository.dart';
 import 'repositories/auth_repository.dart';
 import 'repositories/competition_repository.dart';
 import 'repositories/lecturer_repository.dart';
 import 'repositories/student_repository.dart';
 import 'repositories/team_repository.dart';
 import '../core/services/supabase_service.dart';
+import 'dart:io';
 
 class ApplicationHistoryItem {
   const ApplicationHistoryItem({
     required this.id,
+    required this.teamId,
     required this.teamName,
     required this.competitionName,
-    required this.appliedRole,
     required this.matchingScore,
     required this.status,
     required this.createdLabel,
   });
 
   final String id;
+  final String teamId;
   final String teamName;
   final String competitionName;
-  final String appliedRole;
   final int matchingScore;
   final String status;
   final String createdLabel;
 }
 
+// ── MentoringRequest ──────────────────────────────────────────────────────────
+// Ditambahkan: teamId dan proposalLink
+// Dibutuhkan oleh LecturerDashboardScreen untuk:
+//   - navigate ke TeamDetailScreen (teamId)
+//   - tombol buka file PDF proposal (proposalLink)
+
 class MentoringRequest {
   const MentoringRequest({
     required this.id,
+    required this.teamId,
     required this.teamName,
     required this.competitionName,
     required this.proposalTitle,
     required this.proposalSummary,
+    required this.proposalLink,
     required this.status,
   });
 
   final String id;
+  final String teamId;       // ← NEW: untuk navigate ke detail tim
   final String teamName;
   final String competitionName;
   final String proposalTitle;
   final String proposalSummary;
+  final String proposalLink; // ← NEW: URL file PDF proposal
   final String status;
 
   MentoringRequest copyWith({String? status}) {
     return MentoringRequest(
       id: id,
+      teamId: teamId,
       teamName: teamName,
       competitionName: competitionName,
       proposalTitle: proposalTitle,
       proposalSummary: proposalSummary,
+      proposalLink: proposalLink,
       status: status ?? this.status,
     );
   }
@@ -86,6 +100,7 @@ class AppState extends ChangeNotifier {
     this.competitionRepository = const CompetitionRepository(),
     this.lecturerRepository = const LecturerRepository(),
     this.studentRepository = const StudentRepository(),
+    this.anggotaPostRepository = const AnggotaPostRepository(),
   });
 
   final AuthRepository authRepository;
@@ -93,6 +108,7 @@ class AppState extends ChangeNotifier {
   final CompetitionRepository competitionRepository;
   final LecturerRepository lecturerRepository;
   final StudentRepository studentRepository;
+  final AnggotaPostRepository anggotaPostRepository;
 
   static const _emptyStudent = UserModel(
     id: '',
@@ -141,6 +157,7 @@ class AppState extends ChangeNotifier {
   UserModel lecturerUser = _emptyLecturerUser;
 
   List<TeamModel> teams = [];
+  List<AnggotaPostModel> anggotaPosts = [];
   List<LecturerModel> lecturers = [];
   List<CompetitionModel> competitions = [];
   List<AchievementModel> achievements = [];
@@ -149,6 +166,7 @@ class AppState extends ChangeNotifier {
 
   bool isAuthLoading = false;
   bool isTeamsLoading = false;
+  bool isAnggotaPostsLoading = false;
   bool isCompetitionsLoading = false;
   bool isLecturersLoading = false;
   bool isAchievementsLoading = false;
@@ -157,6 +175,7 @@ class AppState extends ChangeNotifier {
 
   String? apiNotice;
   String? teamError;
+  String? anggotaPostError;
   String? competitionError;
   String? lecturerError;
   String? achievementError;
@@ -165,6 +184,8 @@ class AppState extends ChangeNotifier {
 
   final Set<String> _requestedTeamIds = {};
   final Set<String> _requestedLecturerIds = {};
+
+  // ── Helpers ──────────────────────────────────────────────────────────────────
 
   TeamModel teamById(String id) {
     return teams.firstWhere((team) => team.id == id, orElse: () => _emptyTeam);
@@ -177,10 +198,11 @@ class AppState extends ChangeNotifier {
     );
   }
 
+  // ── Auth ─────────────────────────────────────────────────────────────────────
+
   Future<LoginResult> signInWithGoogle() async {
     isAuthLoading = true;
     notifyListeners();
-
     try {
       final launched = await authRepository.signInWithGoogle();
       return LoginResult(
@@ -210,7 +232,6 @@ class AppState extends ChangeNotifier {
   }) async {
     isAuthLoading = true;
     notifyListeners();
-
     try {
       final user = await authRepository.signInWithNim(
         identifier: identifier,
@@ -230,7 +251,6 @@ class AppState extends ChangeNotifier {
   Future<LoginResult> completeAuthenticatedLogin() async {
     isAuthLoading = true;
     notifyListeners();
-
     try {
       final user = await authRepository.completeAuthenticatedLogin();
       apiNotice = null;
@@ -247,90 +267,82 @@ class AppState extends ChangeNotifier {
     }
   }
 
-Future<LoginResult> registerWithPassword({
-  required String email,
-  required String password,
-  required String name,
-  required String academicIdentifier,
-  required String faculty,
-  required String studyProgram,
-  required int? batchYear,
-  required List<String> skills,
-}) async {
-  isAuthLoading = true;
-  notifyListeners();
-
-  try {
-    // 1. Buat akun di Supabase Auth — session akan null (Confirm Email ON)
-    await authRepository.signUpWithPassword(
-      email: email,
-      password: password,
-    );
-
-    // 2. Simpan data profil via Edge Function (pakai anon key, cari user by email)
-    await authRepository.completeRegistration(
-      email: email, // ✅ tambah email
-      name: name,
-      academicIdentifier: academicIdentifier,
-      faculty: faculty,
-      studyProgram: studyProgram,
-      batchYear: batchYear,
-      skills: skills,
-    );
-
-    // 3. Akun berhasil dibuat — user bisa langsung login
-    return LoginResult(
-      success: true,
-      route: '/login',
-      email: email.trim().toLowerCase(),
-      message: 'Akun berhasil dibuat. Silakan login dengan email dan password Anda.',
-    );
-  } catch (error, stackTrace) {
-    _logSupabaseError('registerWithPassword', error, stackTrace);
-    return _authFailure(error, prefix: 'Pendaftaran gagal');
-  } finally {
-    isAuthLoading = false;
+  Future<LoginResult> registerWithPassword({
+    required String email,
+    required String password,
+    required String name,
+    required String academicIdentifier,
+    required String faculty,
+    required String studyProgram,
+    required int? batchYear,
+    required List<String> skills,
+  }) async {
+    isAuthLoading = true;
     notifyListeners();
+    try {
+      await authRepository.signUpWithPassword(
+        email: email,
+        password: password,
+      );
+      await authRepository.completeRegistration(
+        email: email,
+        name: name,
+        academicIdentifier: academicIdentifier,
+        faculty: faculty,
+        studyProgram: studyProgram,
+        batchYear: batchYear,
+        skills: skills,
+      );
+      return LoginResult(
+        success: true,
+        route: '/login',
+        email: email.trim().toLowerCase(),
+        message:
+            'Akun berhasil dibuat. Silakan login dengan email dan password Anda.',
+      );
+    } catch (error, stackTrace) {
+      _logSupabaseError('registerWithPassword', error, stackTrace);
+      return _authFailure(error, prefix: 'Pendaftaran gagal');
+    } finally {
+      isAuthLoading = false;
+      notifyListeners();
+    }
   }
-}
 
-Future<LoginResult> completeCurrentRegistration({
-  required String name,
-  required String academicIdentifier,
-  required String faculty,
-  required String studyProgram,
-  required int? batchYear,
-  required List<String> skills,
-}) async {
-  isAuthLoading = true;
-  notifyListeners();
-
-  try {
-    final email = SupabaseService.client.auth.currentUser?.email ?? '';
-
-    await authRepository.completeRegistration(
-      email: email,
-      name: name,
-      academicIdentifier: academicIdentifier,
-      faculty: faculty,
-      studyProgram: studyProgram,
-      batchYear: batchYear,
-      skills: skills,
-    );
-
-    final user = await authRepository.completeAuthenticatedLogin();
-    return await _loginResultForUser(
-      user,
-      successMessage: 'Profil pendaftaran berhasil dilengkapi.',
-    );
-  } catch (error, stackTrace) {
-    _logSupabaseError('completeCurrentRegistration', error, stackTrace);
-    return _authFailure(error, prefix: 'Pendaftaran gagal');
-  } finally {
-    isAuthLoading = false;
+  Future<LoginResult> completeCurrentRegistration({
+    required String name,
+    required String academicIdentifier,
+    required String faculty,
+    required String studyProgram,
+    required int? batchYear,
+    required List<String> skills,
+  }) async {
+    isAuthLoading = true;
     notifyListeners();
+    try {
+      final email = SupabaseService.client.auth.currentUser?.email ?? '';
+      await authRepository.completeRegistration(
+        email: email,
+        name: name,
+        academicIdentifier: academicIdentifier,
+        faculty: faculty,
+        studyProgram: studyProgram,
+        batchYear: batchYear,
+        skills: skills,
+      );
+      final user = await authRepository.completeAuthenticatedLogin();
+      return await _loginResultForUser(
+        user,
+        successMessage: 'Profil pendaftaran berhasil dilengkapi.',
+      );
+    } catch (error, stackTrace) {
+      _logSupabaseError('completeCurrentRegistration', error, stackTrace);
+      return _authFailure(error, prefix: 'Pendaftaran gagal');
+    } finally {
+      isAuthLoading = false;
+      notifyListeners();
+    }
   }
-}
 
   Future<void> signOut() async {
     try {
@@ -342,6 +354,7 @@ Future<LoginResult> completeCurrentRegistration({
       student = _emptyStudent;
       lecturerUser = _emptyLecturerUser;
       teams = [];
+      anggotaPosts = [];
       lecturers = [];
       competitions = [];
       achievements = [];
@@ -350,6 +363,8 @@ Future<LoginResult> completeCurrentRegistration({
       notifyListeners();
     }
   }
+
+  // ── Load data ────────────────────────────────────────────────────────────────
 
   Future<void> loadStudentDashboard() async {
     await Future.wait([
@@ -377,13 +392,28 @@ Future<LoginResult> completeCurrentRegistration({
     }
   }
 
+  Future<void> loadAnggotaPosts() async {
+    isAnggotaPostsLoading = true;
+    notifyListeners();
+    try {
+      anggotaPosts = await anggotaPostRepository.getPosts();
+      anggotaPostError = null;
+    } catch (error, stackTrace) {
+      _logSupabaseError('loadAnggotaPosts', error, stackTrace);
+      anggotaPostError = 'Gagal mengambil postingan dari Supabase: $error';
+      anggotaPosts = [];
+    } finally {
+      isAnggotaPostsLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<TeamModel> loadTeamDetail(String id) async {
     isTeamsLoading = true;
     notifyListeners();
     try {
-      final detail = _restoreTeamRequestState(
-        await teamRepository.getTeamDetail(id),
-      );
+      final detail =
+          _restoreTeamRequestState(await teamRepository.getTeamDetail(id));
       _upsertTeam(detail);
       teamError = null;
       return detail;
@@ -418,7 +448,8 @@ Future<LoginResult> completeCurrentRegistration({
     notifyListeners();
     try {
       final supabaseLecturers = await lecturerRepository.getLecturers();
-      lecturers = supabaseLecturers.map(_restoreLecturerRequestState).toList();
+      lecturers =
+          supabaseLecturers.map(_restoreLecturerRequestState).toList();
       lecturerError = null;
     } catch (error, stackTrace) {
       _logSupabaseError('loadLecturers', error, stackTrace);
@@ -473,17 +504,29 @@ Future<LoginResult> completeCurrentRegistration({
       final requests = await teamRepository.getJoinRequests(student.id);
       applicationHistory = requests
           .map(
-            (request) => ApplicationHistoryItem(
-              id: request.id,
-              teamName: request.teamName,
-              competitionName: request.competitionName,
-              appliedRole: request.appliedRole,
-              matchingScore: request.matchingScore,
-              status: request.status,
+            (r) => ApplicationHistoryItem(
+              id: r.id,
+              teamId: r.teamId,
+              teamName: r.teamName,
+              competitionName: r.competitionName,
+              matchingScore: r.matchingScore,
+              status: r.status,
               createdLabel: 'Dari Supabase',
             ),
           )
           .toList();
+
+      final pendingTeamIds = applicationHistory
+          .where((item) => item.status == 'Menunggu')
+          .map((item) => item.teamId)
+          .toSet();
+      _requestedTeamIds.addAll(pendingTeamIds);
+      teams = teams
+          .map((team) => pendingTeamIds.contains(team.id)
+              ? team.copyWith(hasRequested: true)
+              : team)
+          .toList();
+
       applicationHistoryError = null;
     } catch (error, stackTrace) {
       _logSupabaseError('loadApplicationHistory', error, stackTrace);
@@ -500,9 +543,8 @@ Future<LoginResult> completeCurrentRegistration({
     isMentoringRequestsLoading = true;
     notifyListeners();
     try {
-      final requests = await lecturerRepository.getMentorshipRequests(
-        lecturerUser.id,
-      );
+      final requests =
+          await lecturerRepository.getMentorshipRequests(lecturerUser.id);
       mentoringRequests = requests.map(_mapMentoringRequest).toList();
       mentoringRequestError = null;
     } catch (error, stackTrace) {
@@ -516,15 +558,40 @@ Future<LoginResult> completeCurrentRegistration({
     }
   }
 
-  Future<String> requestJoinTeamApi(String teamId) async {
+  // ── Actions ──────────────────────────────────────────────────────────────────
+
+  Future<String> publishAnggotaPost({
+    required String title,
+    required String description,
+    required String skills,
+    required String competition,
+    String? notes,
+  }) async {
+    try {
+      await anggotaPostRepository.createPost(
+        studentId: student.id,
+        title: title,
+        description: description,
+        skills: skills,
+        competitionName: competition,
+        notes: notes,
+      );
+      await loadAnggotaPosts();
+      return 'Postingan berhasil dipublikasikan.';
+    } catch (error, stackTrace) {
+      _logSupabaseError('publishAnggotaPost', error, stackTrace);
+      return 'Gagal mempublikasikan postingan: $error';
+    }
+  }
+
+  Future<String> requestJoinTeamApi(String teamId, {String message = ''}) async {
     final team = teamById(teamId);
     try {
       await teamRepository.joinRequest(
         teamId: teamId,
         studentId: student.id,
         appliedRole: 'Mobile Developer',
-        message:
-            'Saya ingin bergabung dan membantu pengembangan aplikasi serta pitching.',
+        message: message,
         studentSkills: student.skills,
       );
       requestJoinTeam(teamId);
@@ -536,24 +603,34 @@ Future<LoginResult> completeCurrentRegistration({
     }
   }
 
-  Future<String> requestLecturerApi(String lecturerId) async {
-    final ownedTeams = teams.where((team) => team.leaderId == student.id);
-    final teamId = ownedTeams.isNotEmpty ? ownedTeams.first.id : '';
-    if (teamId.isEmpty) {
-      const message =
+  /// Kirim request bimbingan ke dosen.
+  /// [proposalTitle], [proposalSummary], [proposalLink] diisi dari form proposal.
+  /// [teamId] opsional, jika tidak disediakan akan menggunakan tim pertama dimana student adalah leader.
+  Future<String> requestLecturerApi(
+    String lecturerId, {
+    String proposalTitle = '',
+    String proposalSummary = '',
+    String proposalLink = '',
+    String? teamId,
+  }) async {
+    final ownedTeams = teams.where((t) => t.leaderId == student.id).toList();
+    
+    // Use provided teamId or select first owned team
+    final selectedTeamId = teamId ?? (ownedTeams.isNotEmpty ? ownedTeams.first.id : '');
+    
+    if (selectedTeamId.isEmpty) {
+      const msg =
           'Gagal mengirim request bimbingan: buat tim terlebih dahulu agar request dapat dikirim oleh ketua tim.';
-      debugPrint('[Supabase][requestLecturerApi] $message');
-      return message;
+      debugPrint('[Supabase][requestLecturerApi] $msg');
+      return msg;
     }
-
     try {
       await lecturerRepository.requestMentorship(
-        teamId: teamId,
+        teamId: selectedTeamId,
         lecturerId: lecturerId,
-        proposalTitle: 'Proposal Mentoring Prestify',
-        proposalSummary:
-            'Tim membutuhkan masukan untuk validasi ide, teknis MVP, dan strategi presentasi lomba.',
-        proposalLink: '',
+        proposalTitle: proposalTitle,
+        proposalSummary: proposalSummary,
+        proposalLink: proposalLink,
       );
       requestLecturer(lecturerId);
       return 'Request bimbingan berhasil dikirim.';
@@ -563,12 +640,57 @@ Future<LoginResult> completeCurrentRegistration({
     }
   }
 
+  /// Upload file PDF proposal ke Supabase Storage.
+  /// Dipanggil dari LecturerFinderScreen sebelum requestLecturerApi.
+  Future<String?> uploadProposalPdf(File file, String lecturerId) async {
+    try {
+      return await lecturerRepository.uploadProposalPdf(file, lecturerId);
+    } catch (error, stackTrace) {
+      _logSupabaseError('uploadProposalPdf', error, stackTrace);
+      return null;
+    }
+  }
+
+  /// Update profil dosen — dipanggil dari LecturerDashboardScreen edit profil.
+  Future<String> updateLecturerProfile({
+    required String name,
+    required String faculty,
+    required int maxQuota,
+    required List<String> expertise,
+    required List<String> experiences,
+  }) async {
+    try {
+      await lecturerRepository.updateLecturerProfile(
+        lecturerId: lecturerUser.id,
+        name: name,
+        faculty: faculty,
+        maxQuota: maxQuota,
+        expertise: expertise,
+        experiences: experiences,
+      );
+      // Sync local state agar UI langsung reflect perubahan
+      lecturerUser = lecturerUser.copyWith(
+        name: name,
+        faculty: faculty,
+        maxQuota: maxQuota,
+        expertise: expertise,
+        experiences: experiences,
+      );
+      notifyListeners();
+      return 'Profil berhasil diperbarui.';
+    } catch (error, stackTrace) {
+      _logSupabaseError('updateLecturerProfile', error, stackTrace);
+      return 'Gagal memperbarui profil: $error';
+    }
+  }
+
   Future<String> publishRecruitmentPost({
     required String type,
     required String title,
     required String description,
     required String skills,
     required String competition,
+    required int maxMembers,
     Uint8List? posterBytes,
     String? posterFileName,
     String? posterContentType,
@@ -576,14 +698,15 @@ Future<LoginResult> completeCurrentRegistration({
   }) async {
     try {
       String? posterUrl;
-      if (posterBytes != null && posterFileName != null && posterContentType != null) {
+      if (posterBytes != null &&
+          posterFileName != null &&
+          posterContentType != null) {
         posterUrl = await teamRepository.uploadTeamPoster(
           bytes: posterBytes,
           fileName: posterFileName,
           contentType: posterContentType,
         );
       }
-
       await teamRepository.createTeam(
         competitionName: competition,
         leaderId: student.id,
@@ -591,6 +714,7 @@ Future<LoginResult> completeCurrentRegistration({
         description: description,
         requiredSkills: skills,
         requiredRoles: type,
+        maxMembers: maxMembers,
         posterUrl: posterUrl,
         notes: notes,
       );
@@ -760,25 +884,24 @@ Future<LoginResult> completeCurrentRegistration({
 
   void requestLecturer(String lecturerId) {
     _requestedLecturerIds.add(lecturerId);
-    final index = lecturers.indexWhere((lecturer) => lecturer.id == lecturerId);
+    final index =
+        lecturers.indexWhere((lecturer) => lecturer.id == lecturerId);
     if (index == -1) return;
     lecturers[index] = lecturers[index].copyWith(hasRequested: true);
     notifyListeners();
   }
 
-  Future<String> updateMentoringRequest(String requestId, String status) async {
+  Future<String> updateMentoringRequest(
+      String requestId, String status) async {
     try {
       await lecturerRepository.updateMentorshipRequestStatus(
         requestId: requestId,
         status: status,
       );
-      final index = mentoringRequests.indexWhere(
-        (request) => request.id == requestId,
-      );
+      final index = mentoringRequests.indexWhere((r) => r.id == requestId);
       if (index != -1) {
-        mentoringRequests[index] = mentoringRequests[index].copyWith(
-          status: status,
-        );
+        mentoringRequests[index] =
+            mentoringRequests[index].copyWith(status: status);
       }
       notifyListeners();
       return 'Status request berhasil diperbarui.';
@@ -787,6 +910,8 @@ Future<LoginResult> completeCurrentRegistration({
       return 'Gagal memperbarui status request: $error';
     }
   }
+
+  // ── Private helpers ───────────────────────────────────────────────────────────
 
   Future<LoginResult> _loginResultForUser(
     UserModel user, {
@@ -831,7 +956,8 @@ Future<LoginResult> completeCurrentRegistration({
         message: '$prefix: ${error.message}',
       );
     }
-    return LoginResult(success: false, route: '', message: '$prefix: $error');
+    return LoginResult(
+        success: false, route: '', message: '$prefix: $error');
   }
 
   void _setCurrentUser(UserModel user) {
@@ -893,19 +1019,17 @@ Future<LoginResult> completeCurrentRegistration({
     String status,
     String createdLabel,
   ) {
-    final existingIndex = applicationHistory.indexWhere(
-      (item) => item.id == team.id,
-    );
+    final existingIndex =
+        applicationHistory.indexWhere((item) => item.id == team.id);
     final item = ApplicationHistoryItem(
       id: team.id,
+      teamId: team.id,
       teamName: team.name,
       competitionName: team.competitionName,
-      appliedRole: 'Mobile Developer',
       matchingScore: team.matchingScore,
       status: status,
       createdLabel: createdLabel,
     );
-
     if (existingIndex == -1) {
       applicationHistory = [item, ...applicationHistory];
     } else {
@@ -914,18 +1038,23 @@ Future<LoginResult> completeCurrentRegistration({
     notifyListeners();
   }
 
-  MentoringRequest _mapMentoringRequest(MentorshipRequestModel request) {
+  // Mapping dari MentorshipRequestModel (data layer) ke MentoringRequest (app layer)
+  // teamId dan proposalLink sekarang ikut di-map
+  MentoringRequest _mapMentoringRequest(MentorshipRequestModel r) {
     return MentoringRequest(
-      id: request.id,
-      teamName: request.teamName,
-      competitionName: request.competitionName,
-      proposalTitle: request.proposalTitle,
-      proposalSummary: request.proposalSummary,
-      status: request.status,
+      id: r.id,
+      teamId: r.teamId,
+      teamName: r.teamName,
+      competitionName: r.competitionName,
+      proposalTitle: r.proposalTitle,
+      proposalSummary: r.proposalSummary,
+      proposalLink: r.proposalLink,
+      status: r.status,
     );
   }
 
-  void _logSupabaseError(String context, Object error, StackTrace stackTrace) {
+  void _logSupabaseError(
+      String context, Object error, StackTrace stackTrace) {
     debugPrint('[Supabase][$context] $error');
     debugPrintStack(
       label: '[Supabase][$context] Stack trace',

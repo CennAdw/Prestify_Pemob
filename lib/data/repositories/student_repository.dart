@@ -133,13 +133,10 @@ Future<UserModel> getUserDetails(String userId) async {
     return bucket.getPublicUrl(path);
   }
 
-  String _extensionFromFileName(String fileName) {
-    final parts = fileName.split('.');
-    if (parts.length < 2) return 'jpg';
-    final ext = parts.last.toLowerCase();
-    if (ext == 'png' || ext == 'webp' || ext == 'jpg' || ext == 'jpeg') {
-      return ext;
-    }
-    return 'jpg';
-  }
+String _extensionFromFileName(String fileName) {
+  final parts = fileName.split('.');
+  if (parts.length < 2) return 'bin';
+
+  return parts.last.toLowerCase();
+}
 }

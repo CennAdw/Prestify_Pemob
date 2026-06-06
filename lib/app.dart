@@ -77,11 +77,11 @@ class _UpiConnectAppState extends State<UpiConnectApp> {
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: AppColors.softBorder),
+          borderSide: const BorderSide(color: AppColors.textGray),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: AppColors.softBorder),
+          borderSide: const BorderSide(color: AppColors.textGray),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),

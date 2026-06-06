@@ -1,17 +1,24 @@
 import 'model_helpers.dart';
 
 class TeamMember {
-  const TeamMember({required this.studentId, required this.name, required this.role});
+  const TeamMember({
+    required this.studentId,
+    required this.name,
+    required this.role,
+    this.avatarUrl,
+  });
 
   final String studentId;
   final String name;
   final String role;
+  final String? avatarUrl;
 
   factory TeamMember.fromJson(Map<String, dynamic> json) {
     return TeamMember(
       studentId: parseString(json['student_id'] ?? json['studentId'] ?? ''),
       name: parseString(json['name'] ?? json['student_name']),
       role: parseString(json['role'] ?? json['role_in_team']),
+      avatarUrl: json['avatar_url']?.toString(),
     );
   }
 }

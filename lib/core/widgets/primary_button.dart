@@ -1,69 +1,98 @@
 import 'package:flutter/material.dart';
-
 import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
 
 class PrimaryButton extends StatelessWidget {
   const PrimaryButton({
+    super.key,
     required this.label,
-    required this.onPressed,
     this.icon,
+    this.onPressed,
+    this.outlined = false,
     this.isExpanded = true,
     this.backgroundColor,
     this.foregroundColor,
-    this.outlined = false,
-    super.key,
+    this.compact = false,
   });
 
   final String label;
-  final VoidCallback? onPressed;
   final IconData? icon;
+  final VoidCallback? onPressed;
+  final bool outlined;
   final bool isExpanded;
   final Color? backgroundColor;
   final Color? foregroundColor;
-  final bool outlined;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    final content = FittedBox(
-      fit: BoxFit.scaleDown,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          if (icon != null) ...[Icon(icon, size: 18), const SizedBox(width: 8)],
-          Text(label, maxLines: 1),
-        ],
-      ),
-    );
+    final effectiveBg = backgroundColor ??
+        (outlined ? Colors.transparent : AppColors.primaryBlue);
+    final effectiveFg = foregroundColor ??
+        (outlined ? AppColors.primaryBlue : AppColors.white);
 
-    final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(8),
-    );
-    final child = outlined
-        ? OutlinedButton(
-            onPressed: onPressed,
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size(0, 48),
-              foregroundColor: foregroundColor ?? AppColors.primaryBlue,
-              side: BorderSide(color: foregroundColor ?? AppColors.primaryBlue),
-              shape: shape,
+    final vertPad = compact ? 10.0 : 14.0;
+    final horizPad = compact ? 16.0 : 20.0;
+
+    final style = outlined
+        ? OutlinedButton.styleFrom(
+            foregroundColor: effectiveFg,
+            side: BorderSide(color: effectiveFg.withAlpha(200), width: 1.5),
+            padding: EdgeInsets.symmetric(
+              vertical: vertPad,
+              horizontal: horizPad,
             ),
-            child: content,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            textStyle: AppTextStyles.buttonLabel,
           )
-        : ElevatedButton(
-            onPressed: onPressed,
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(0, 48),
-              backgroundColor: backgroundColor ?? AppColors.primaryBlue,
-              foregroundColor: foregroundColor ?? AppColors.white,
-              disabledBackgroundColor: AppColors.softBorder,
-              disabledForegroundColor: AppColors.textGray,
-              elevation: 0,
-              shape: shape,
+        : ElevatedButton.styleFrom(
+            backgroundColor: effectiveBg,
+            foregroundColor: effectiveFg,
+            elevation: 0,
+            shadowColor: Colors.transparent,
+            padding: EdgeInsets.symmetric(
+              vertical: vertPad,
+              horizontal: horizPad,
             ),
-            child: content,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            textStyle: AppTextStyles.buttonLabel,
           );
 
-    return SizedBox(width: isExpanded ? double.infinity : null, child: child);
+    Widget buttonChild = icon != null
+        ? Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: compact ? 16 : 18),
+              SizedBox(width: compact ? 6 : 8),
+              Text(label),
+            ],
+          )
+        : Text(label);
+
+    if (isExpanded) {
+      buttonChild = SizedBox(
+        width: double.infinity,
+        child: buttonChild,
+      );
+    }
+
+    if (outlined) {
+      return OutlinedButton(
+        onPressed: onPressed,
+        style: style,
+        child: buttonChild,
+      );
+    }
+
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: style,
+      child: buttonChild,
+    );
   }
 }

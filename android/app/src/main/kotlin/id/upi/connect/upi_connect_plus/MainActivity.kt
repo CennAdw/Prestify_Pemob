@@ -1,4 +1,4 @@
-package id.upi.connect.upi_connect_plus
+package id.upi.prestify
 
 import io.flutter.embedding.android.FlutterActivity
 

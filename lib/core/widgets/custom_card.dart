@@ -1,54 +1,57 @@
 import 'package:flutter/material.dart';
-
 import '../constants/app_colors.dart';
 
 class CustomCard extends StatelessWidget {
   const CustomCard({
-    required this.child,
-    this.padding = const EdgeInsets.all(16),
-    this.margin = EdgeInsets.zero,
-    this.color = AppColors.white,
-    this.border,
-    this.onTap,
     super.key,
+    required this.child,
+    this.color,
+    this.padding,
+    this.onTap,
+    this.borderRadius,
+    this.border,
+    this.elevation = 0,
   });
 
   final Widget child;
-  final EdgeInsetsGeometry padding;
-  final EdgeInsetsGeometry margin;
-  final Color color;
-  final BoxBorder? border;
+  final Color? color;
+  final EdgeInsetsGeometry? padding;
   final VoidCallback? onTap;
+  final BorderRadius? borderRadius;
+  final Border? border;
+  final double elevation;
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(8);
-    final decorated = Container(
-      width: double.infinity,
-      margin: margin,
-      decoration: BoxDecoration(
-        color: color,
+    final radius = borderRadius ?? BorderRadius.circular(16);
+    final bg = color ?? AppColors.backgroundCard;
+    final effectivePadding = padding ?? const EdgeInsets.all(16);
+
+    return Material(
+      color: bg,
+      borderRadius: radius,
+      elevation: elevation,
+      shadowColor: AppColors.deepNavy.withAlpha(20),
+      child: InkWell(
+        onTap: onTap,
         borderRadius: radius,
-        border: border,
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.deepNavy.withAlpha(14),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+        splashColor: AppColors.primaryBlue.withAlpha(10),
+        highlightColor: AppColors.primaryBlue.withAlpha(6),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: radius,
+            border: border ??
+                Border.all(
+                  color: color != null
+                      ? Colors.transparent
+                      : AppColors.borderLight,
+                  width: 1,
+                ),
           ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: radius,
-        child: InkWell(
-          borderRadius: radius,
-          onTap: onTap,
-          child: Padding(padding: padding, child: child),
+          padding: effectivePadding,
+          child: child,
         ),
       ),
     );
-
-    return decorated;
   }
 }

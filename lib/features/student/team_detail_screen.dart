@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../app.dart';
 import '../../core/constants/app_colors.dart';
@@ -24,18 +25,13 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
   final List<JoinRequestModel> _joinRequests = [];
   bool _isRequestsLoading = false;
   String? _requestError;
-  bool _isMemberDetailsLoading = false;
-  UserModel? _selectedMemberDetails;
-  List<AchievementModel> _selectedMemberAchievements = [];
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        AppStateScope.of(context)
-            .loadTeamDetail(widget.teamId)
-            .then((_) {
+        AppStateScope.of(context).loadTeamDetail(widget.teamId).then((_) {
           if (!mounted) return;
           _loadJoinRequestsIfLeader();
         });
@@ -61,7 +57,7 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
       setState(() {
         _joinRequests
           ..clear()
-          ..addAll(requests);
+          ..addAll(requests.where((r) => r.status == 'Menunggu'));
       });
     } catch (error) {
       if (!mounted) return;
@@ -71,9 +67,7 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
     }
 
     if (!mounted) return;
-    setState(() {
-      _isRequestsLoading = false;
-    });
+    setState(() => _isRequestsLoading = false);
   }
 
   Future<void> _handleJoinRequestAction(
@@ -86,39 +80,265 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
       status: status,
     );
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
     await state.loadTeamDetail(widget.teamId);
     await _loadJoinRequestsIfLeader();
   }
 
-  Future<void> _loadMemberDetails(String studentId) async {
-    debugPrint('MEMBER ID = $studentId');
-    setState(() {
-      _isMemberDetailsLoading = true;
-      _selectedMemberDetails = null;
-      _selectedMemberAchievements = [];
-    });
+  Future<void> _launchPortfolioUrl(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('URL portfolio tidak valid.')),
+      );
+      return;
+    }
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tidak dapat membuka URL portfolio.')),
+      );
+    }
+  }
+
+  Future<void> _showJoinDialog(
+    BuildContext context,
+    dynamic state,
+    String teamId,
+  ) async {
+    final messageController = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Ajukan Bergabung'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Pesan untuk ketua tim (opsional)',
+              style: AppTextStyles.subtitle,
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: messageController,
+              minLines: 3,
+              maxLines: 5,
+              decoration: InputDecoration(
+                hintText: 'Ceritakan motivasimu bergabung ke tim ini...',
+                hintStyle:
+                    AppTextStyles.body.copyWith(color: AppColors.textHint),
+                filled: true,
+                fillColor: AppColors.backgroundSoftGray,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.borderLight),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.borderLight),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                    color: AppColors.primaryBlue,
+                    width: 1.5,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Kirim'),
+          ),
+        ],
+      ),
+    );
+    final msg = messageController.text.trim();
+    messageController.dispose();
+    if (confirmed != true || !mounted) return;
+    final result = await state.requestJoinTeamApi(teamId, message: msg);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result)));
+  }
+
+  // ── Muat detail anggota lalu tampilkan dialog ─────────────────────────────
+  //
+  // FIX: Dulu dialog dibuka sebelum data selesai dimuat sehingga builder
+  // membaca state yang masih null.  Sekarang kita tunggu data ready terlebih
+  // dahulu, baru buka dialog dengan data yang sudah pasti ada.
+  Future<void> _showMemberDetail(String studentId, String fallbackName) async {
+    UserModel? userDetails;
+    List<AchievementModel> achievements = [];
+
+    // Tampilkan loading snackbar sementara fetch
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            ),
+            SizedBox(width: 12),
+            Text('Memuat detail anggota...'),
+          ],
+        ),
+        duration: Duration(seconds: 10),
+      ),
+    );
 
     try {
       final state = AppStateScope.of(context);
-      final userDetails = await state.studentRepository.getUserDetails(studentId);
-      final achievements = await state.studentRepository.getAchievements(studentId);
-      
-      if (!mounted) return;
-      setState(() {
-        _selectedMemberDetails = userDetails;
-        _selectedMemberAchievements = achievements;
-        _isMemberDetailsLoading = false;
-      });
-    } catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _isMemberDetailsLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memuat detail anggota: $error')),
-      );
+      userDetails = await state.studentRepository.getUserDetails(studentId);
+      achievements = await state.studentRepository.getAchievements(studentId);
+    } catch (_) {
+      // error akan ditangani di bawah
     }
+
+    if (!mounted) return;
+    messenger.hideCurrentSnackBar();
+
+    if (userDetails == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Gagal memuat detail anggota.')),
+      );
+      return;
+    }
+
+    final displayName =
+        userDetails.name.isEmpty ? fallbackName : userDetails.name;
+
+    // ignore: use_build_context_synchronously
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Detail Anggota'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Avatar ──────────────────────────────────────────────────
+                Center(
+                  child: _ProfileAvatar(
+                    avatarUrl: userDetails!.avatarUrl,
+                    name: displayName,
+                    radius: 36,
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // ── Nama ────────────────────────────────────────────────────
+                Center(
+                  child: Text(displayName, style: AppTextStyles.subtitle),
+                ),
+                const SizedBox(height: 16),
+
+                // ── Skill ───────────────────────────────────────────────────
+                const Text('Skill', style: AppTextStyles.subtitle),
+                const SizedBox(height: 8),
+                userDetails.skills.isEmpty
+                    ? Text(
+                        'Belum ada skill.',
+                        style: AppTextStyles.body
+                            .copyWith(color: AppColors.textGray),
+                      )
+                    : Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: userDetails.skills
+                            .map((s) => SkillChip(label: s))
+                            .toList(),
+                      ),
+                const SizedBox(height: 12),
+
+                // ── Prestasi ────────────────────────────────────────────────
+                const Text('Prestasi', style: AppTextStyles.subtitle),
+                const SizedBox(height: 8),
+                if (achievements.isEmpty)
+                  Text(
+                    'Belum ada prestasi.',
+                    style:
+                        AppTextStyles.body.copyWith(color: AppColors.textGray),
+                  )
+                else
+                  ...achievements.map(
+                    (a) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(a.title, style: AppTextStyles.body),
+                          Text(
+                            a.subtitle,
+                            style: AppTextStyles.small
+                                .copyWith(color: AppColors.textGray),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 12),
+
+                // ── Portfolio ───────────────────────────────────────────────
+                const Text('Portfolio', style: AppTextStyles.subtitle),
+                const SizedBox(height: 8),
+                userDetails.portfolioUrl == null ||
+                        userDetails.portfolioUrl!.isEmpty
+                    ? Text(
+                        'Belum ada portfolio.',
+                        style: AppTextStyles.body
+                            .copyWith(color: AppColors.textGray),
+                      )
+                    : OutlinedButton.icon(
+                        onPressed: () =>
+                            _launchPortfolioUrl(userDetails!.portfolioUrl!),
+                        icon: const Icon(Icons.open_in_new),
+                        label: const Text('Buka Portfolio'),
+                      ),
+                const SizedBox(height: 12),
+
+                // ── Akademik ────────────────────────────────────────────────
+                const Text('Informasi Akademik', style: AppTextStyles.subtitle),
+                const SizedBox(height: 8),
+                Text('Fakultas: ${userDetails.faculty ?? "-"}',
+                    style: AppTextStyles.body),
+                Text('Program Studi: ${userDetails.program ?? "-"}',
+                    style: AppTextStyles.body),
+                Text('Angkatan: ${userDetails.year ?? "-"}',
+                    style: AppTextStyles.body),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Tutup'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -126,24 +346,22 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
     final state = AppStateScope.of(context);
     final team = state.teamById(widget.teamId);
     final isAlreadyMember = state.student.id.isNotEmpty &&
-      (team.leaderId == state.student.id ||
-        team.members.any(
-          (member) => member.studentId.isNotEmpty &&
-            member.studentId == state.student.id,
-        ));
-    final studentSkills = state.student.skills
-        .map((skill) => skill.toLowerCase())
-        .toSet();
+        (team.leaderId == state.student.id ||
+            team.members.any(
+              (m) => m.studentId.isNotEmpty && m.studentId == state.student.id,
+            ));
+    final isFull =
+        team.maxMembers > 0 && team.members.length >= team.maxMembers;
+    final studentSkills =
+        state.student.skills.map((s) => s.toLowerCase()).toSet();
     final matchedSkills = team.requiredSkills
-        .where((skill) => studentSkills.contains(skill.toLowerCase()))
+        .where((s) => studentSkills.contains(s.toLowerCase()))
         .toList();
     final missingSkills = team.requiredSkills
-        .where((skill) => !studentSkills.contains(skill.toLowerCase()))
+        .where((s) => !studentSkills.contains(s.toLowerCase()))
         .toList();
-    
-    // Calculate matching score dynamically
-    final dynamicMatchingScore = team.requiredSkills.isEmpty 
-        ? 0 
+    final dynamicMatchingScore = team.requiredSkills.isEmpty
+        ? 0
         : ((matchedSkills.length / team.requiredSkills.length) * 100).round();
 
     return Scaffold(
@@ -153,6 +371,7 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ── Hero header ────────────────────────────────────────────────
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
@@ -169,20 +388,19 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                   const SizedBox(height: 14),
                   Text(
                     team.name,
-                    style: AppTextStyles.headline.copyWith(
-                      color: AppColors.white,
-                    ),
+                    style:
+                        AppTextStyles.headline.copyWith(color: AppColors.white),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     team.competitionName,
-                    style: AppTextStyles.body.copyWith(
-                      color: AppColors.lightBlue,
-                    ),
+                    style:
+                        AppTextStyles.body.copyWith(color: AppColors.lightBlue),
                   ),
                 ],
               ),
             ),
+
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -202,40 +420,36 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                       padding: const EdgeInsets.all(12),
                       child: Text(
                         state.teamError!,
-                        style: AppTextStyles.small.copyWith(
-                          color: AppColors.primaryBlue,
-                        ),
+                        style: AppTextStyles.small
+                            .copyWith(color: AppColors.primaryBlue),
                       ),
                     ),
                     const SizedBox(height: 12),
                   ],
+
+                  // ── Deskripsi ──────────────────────────────────────────────
                   CustomCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Deskripsi Tim',
-                          style: AppTextStyles.subtitle,
-                        ),
+                        const Text('Deskripsi Tim', style: AppTextStyles.subtitle),
                         const SizedBox(height: 8),
                         Text(
                           team.description,
-                          style: AppTextStyles.body.copyWith(
-                            color: AppColors.textGray,
-                          ),
+                          style: AppTextStyles.body
+                              .copyWith(color: AppColors.textGray),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 14),
+
+                  // ── Poster ─────────────────────────────────────────────────
                   CustomCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Poster Lomba',
-                          style: AppTextStyles.subtitle,
-                        ),
+                        const Text('Poster Lomba', style: AppTextStyles.subtitle),
                         const SizedBox(height: 12),
                         if (team.posterUrl.isNotEmpty)
                           ClipRRect(
@@ -245,82 +459,41 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                               fit: BoxFit.cover,
                               width: double.infinity,
                               height: 180,
-                              errorBuilder: (context, error, stackTrace) => Container(
-                                width: double.infinity,
-                                height: 180,
-                                decoration: BoxDecoration(
-                                  color: AppColors.backgroundSoftGray,
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: const Center(
-                                  child: Text('Gagal memuat poster.'),
-                                ),
-                              ),
-                              loadingBuilder: (context, child, progress) {
-                                if (progress == null) return child;
-                                return Container(
-                                  width: double.infinity,
-                                  height: 180,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.backgroundSoftGray,
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  child: const Center(
-                                    child: CircularProgressIndicator(),
-                                  ),
-                                );
-                              },
+                              errorBuilder: (_, _, _) => _posterPlaceholder(
+                                  'Gagal memuat poster.'),
+                              loadingBuilder: (_, child, progress) =>
+                                  progress == null
+                                      ? child
+                                      : _posterPlaceholder(null, loading: true),
                             ),
                           )
                         else
-                          Container(
-                            width: double.infinity,
-                            height: 180,
-                            decoration: BoxDecoration(
-                              color: AppColors.backgroundSoftGray,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: const [
-                                Icon(
-                                  Icons.photo_size_select_actual_rounded,
-                                  size: 40,
-                                  color: AppColors.primaryBlue,
-                                ),
-                                SizedBox(height: 10),
-                                Text(
-                                  'Belum ada poster lomba.',
-                                  style: AppTextStyles.body,
-                                ),
-                              ],
-                            ),
-                          ),
+                          _posterPlaceholder(null),
                       ],
                     ),
                   ),
                   const SizedBox(height: 14),
+
+                  // ── Catatan ────────────────────────────────────────────────
                   CustomCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Catatan Lomba',
-                          style: AppTextStyles.subtitle,
-                        ),
+                        const Text('Catatan Lomba', style: AppTextStyles.subtitle),
                         const SizedBox(height: 8),
                         Text(
                           team.notes.isEmpty
                               ? 'Belum ada catatan tambahan dari tim.'
                               : team.notes,
-                          style: AppTextStyles.body.copyWith(
-                            color: AppColors.textGray,
-                          ),
+                          style: AppTextStyles.body
+                              .copyWith(color: AppColors.textGray),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 14),
+
+                  // ── Matching score ─────────────────────────────────────────
                   CustomCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -328,16 +501,13 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                         Row(
                           children: [
                             const Expanded(
-                              child: Text(
-                                'Matching Score',
-                                style: AppTextStyles.subtitle,
-                              ),
+                              child: Text('Matching Score',
+                                  style: AppTextStyles.subtitle),
                             ),
                             Text(
                               '$dynamicMatchingScore%',
-                              style: AppTextStyles.title.copyWith(
-                                color: AppColors.successGreen,
-                              ),
+                              style: AppTextStyles.title
+                                  .copyWith(color: AppColors.successGreen),
                             ),
                           ],
                         ),
@@ -350,17 +520,14 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                           color: AppColors.successGreen,
                         ),
                         const SizedBox(height: 16),
-                        const Text(
-                          'Alasan Kecocokan',
-                          style: AppTextStyles.subtitle,
-                        ),
+                        const Text('Alasan Kecocokan',
+                            style: AppTextStyles.subtitle),
                         const SizedBox(height: 10),
                         if (team.requiredSkills.isEmpty)
                           Text(
                             'Tim belum mengisi kebutuhan skill.',
-                            style: AppTextStyles.body.copyWith(
-                              color: AppColors.textGray,
-                            ),
+                            style: AppTextStyles.body
+                                .copyWith(color: AppColors.textGray),
                           )
                         else
                           Wrap(
@@ -368,16 +535,16 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                             runSpacing: 8,
                             children: [
                               ...matchedSkills.map(
-                                (skill) => SkillChip(
-                                  label: skill,
+                                (s) => SkillChip(
+                                  label: s,
                                   icon: Icons.check_circle_rounded,
                                   backgroundColor: const Color(0xFFEAF8EE),
                                   textColor: AppColors.successGreen,
                                 ),
                               ),
                               ...missingSkills.map(
-                                (skill) => SkillChip(
-                                  label: skill,
+                                (s) => SkillChip(
+                                  label: s,
                                   icon: Icons.info_rounded,
                                   backgroundColor: const Color(0xFFFFF5F3),
                                   textColor: AppColors.alertCoral,
@@ -389,6 +556,8 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: 18),
+
+                  // ── Anggota tim ────────────────────────────────────────────
                   const SectionHeader(title: 'Anggota Tim'),
                   const SizedBox(height: 10),
                   ...team.members.map(
@@ -398,17 +567,11 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                         padding: const EdgeInsets.all(14),
                         child: Row(
                           children: [
-                            CircleAvatar(
-                              backgroundColor: AppColors.lightBlue,
-                              child: Text(
-                                member.name.isEmpty
-                                    ? '?'
-                                    : member.name.characters.first,
-                                style: const TextStyle(
-                                  color: AppColors.primaryBlue,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
+                            // Avatar langsung tampil dari member.avatarUrl
+                            _ProfileAvatar(
+                              avatarUrl: member.avatarUrl,
+                              name: member.name,
+                              radius: 20,
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -417,200 +580,22 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                                 children: [
                                   Text(
                                     member.name,
-                                    style: AppTextStyles.subtitle.copyWith(
-                                      fontSize: 15,
-                                    ),
+                                    style: AppTextStyles.subtitle
+                                        .copyWith(fontSize: 15),
                                   ),
                                   Text(member.role, style: AppTextStyles.muted),
                                 ],
                               ),
                             ),
                             OutlinedButton(
-                              onPressed: () async {
-                                debugPrint('CLICK MEMBER ID = ${member.studentId}');
-                                await _loadMemberDetails(member.studentId);
-                                if (!mounted) return;
-                                if (!context.mounted) return;
-                                showDialog<void>(
-                                  context: context,
-                                  builder: (_) => AlertDialog(
-                                    title: const Text('Detail Anggota'),
-                                    content: SizedBox(
-                                      width: double.maxFinite,
-                                      child: _isMemberDetailsLoading
-                                          ? const Center(
-                                              child: CircularProgressIndicator(),
-                                            )
-                                          : _selectedMemberDetails == null
-                                              ? const Text(
-                                                  'Gagal memuat detail anggota.',
-                                                )
-                                              : SingleChildScrollView(
-                                                  child: Column(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      Text(
-                                                        _selectedMemberDetails!
-                                                                .name
-                                                                .isEmpty
-                                                            ? member.name
-                                                            : _selectedMemberDetails!
-                                                                .name,
-                                                        style: AppTextStyles
-                                                            .subtitle,
-                                                      ),
-                                                      const SizedBox(height: 8),
-                                                      Text(
-                                                        'Peran: ${member.role}',
-                                                        style: AppTextStyles.body,
-                                                      ),
-                                                      const SizedBox(height: 12),
-                                                      const Text(
-                                                        'Skill',
-                                                        style: AppTextStyles
-                                                            .subtitle,
-                                                      ),
-                                                      const SizedBox(height: 8),
-                                                      if (_selectedMemberDetails!
-                                                              .skills
-                                                              .isEmpty)
-                                                        Text(
-                                                          'Belum ada skill.',
-                                                          style: AppTextStyles.body
-                                                              .copyWith(
-                                                            color: AppColors
-                                                                .textGray,
-                                                          ),
-                                                        )
-                                                      else
-                                                        Wrap(
-                                                          spacing: 8,
-                                                          runSpacing: 8,
-                                                          children: _selectedMemberDetails!
-                                                              .skills
-                                                              .map((skill) =>
-                                                                  SkillChip(
-                                                                    label: skill,
-                                                                  ))
-                                                              .toList(),
-                                                        ),
-                                                      const SizedBox(height: 12),
-                                                      const Text(
-                                                        'Prestasi',
-                                                        style: AppTextStyles
-                                                            .subtitle,
-                                                      ),
-                                                      const SizedBox(height: 8),
-                                                      if (_selectedMemberAchievements
-                                                          .isEmpty)
-                                                        Text(
-                                                          'Belum ada prestasi.',
-                                                          style: AppTextStyles.body
-                                                              .copyWith(
-                                                            color: AppColors
-                                                                .textGray,
-                                                          ),
-                                                        )
-                                                      else
-                                                        ..._selectedMemberAchievements
-                                                            .map((achievement) =>
-                                                                Padding(
-                                                                  padding: const EdgeInsets
-                                                                      .only(
-                                                                      bottom:
-                                                                          8),
-                                                                  child: Column(
-                                                                    crossAxisAlignment:
-                                                                        CrossAxisAlignment
-                                                                            .start,
-                                                                    children: [
-                                                                      Text(
-                                                                        achievement.title,
-                                                                        style: AppTextStyles
-                                                                            .body,
-                                                                      ),
-                                                                      Text(
-                                                                        achievement.subtitle,
-                                                                        style: AppTextStyles
-                                                                            .small
-                                                                            .copyWith(
-                                                                          color: AppColors
-                                                                              .textGray,
-                                                                        ),
-                                                                      ),
-                                                                    ],
-                                                                  ),
-                                                                )),
-                                                      const SizedBox(height: 12),
-                                                      const Text(
-                                                        'Portfolio',
-                                                        style: AppTextStyles
-                                                            .subtitle,
-                                                      ),
-                                                      const SizedBox(height: 8),
-                                                      if (_selectedMemberDetails!
-                                                              .portfolioUrl ==
-                                                          null ||
-                                                          _selectedMemberDetails!
-                                                              .portfolioUrl!
-                                                              .isEmpty)
-                                                        Text(
-                                                          'Belum ada portfolio.',
-                                                          style: AppTextStyles.body
-                                                              .copyWith(
-                                                            color: AppColors
-                                                                .textGray,
-                                                          ),
-                                                        )
-                                                      else
-                                                        OutlinedButton.icon(
-                                                          onPressed: () {
-                                                            // Download portfolio
-                                                            final portfolioUrl = _selectedMemberDetails!.portfolioUrl!;
-                                                            // TODO: Implement download functionality
-                                                            ScaffoldMessenger.of(context).showSnackBar(
-                                                              SnackBar(content: Text('Download portfolio: $portfolioUrl')),
-                                                            );
-                                                          },
-                                                          icon: const Icon(Icons.download),
-                                                          label: const Text('Download Portfolio'),
-                                                        ),
-                                                      const SizedBox(height: 12),
-                                                      const Text(
-                                                        'Informasi Akademik',
-                                                        style: AppTextStyles
-                                                            .subtitle,
-                                                      ),
-                                                      const SizedBox(height: 8),
-                                                      Text(
-                                                        'Fakultas: ${_selectedMemberDetails?.faculty ?? "-"}',
-                                                        style: AppTextStyles.body,
-                                                      ),
-                                                      Text(
-                                                        'Program Studi: ${_selectedMemberDetails?.program ?? "-"}',
-                                                        style: AppTextStyles.body,
-                                                      ),
-                                                      Text(
-                                                        'Angkatan: ${_selectedMemberDetails?.year ?? "-"}',
-                                                        style: AppTextStyles.body,
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(context),
-                                        child: const Text('Tutup'),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
+                              // FIX: Tidak ada state lokal yang di-share antar
+                              // anggota.  Data di-fetch di dalam fungsi, lalu
+                              // dialog baru dibuka setelah data ready →
+                              // builder langsung dapat data final.
+                              onPressed: () => _showMemberDetail(
+                                member.studentId,
+                                member.name,
+                              ),
                               child: const Text('Lihat'),
                             ),
                           ],
@@ -618,30 +603,30 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                       ),
                     ),
                   ),
+
+                  // ── Permintaan bergabung (leader only) ────────────────────
                   if (team.leaderId == state.student.id) ...[
                     const SizedBox(height: 18),
                     const SectionHeader(title: 'Permintaan Bergabung'),
                     const SizedBox(height: 10),
-                    if (_isRequestsLoading) ...[
-                      const Center(child: CircularProgressIndicator()),
-                    ] else if (_requestError != null) ...[
+                    if (_isRequestsLoading)
+                      const Center(child: CircularProgressIndicator())
+                    else if (_requestError != null)
                       CustomCard(
                         color: AppColors.lightBlue,
                         padding: const EdgeInsets.all(12),
                         child: Text(
                           _requestError!,
-                          style: AppTextStyles.small.copyWith(
-                            color: AppColors.primaryBlue,
-                          ),
+                          style: AppTextStyles.small
+                              .copyWith(color: AppColors.primaryBlue),
                         ),
-                      ),
-                    ] else if (_joinRequests.isEmpty)
+                      )
+                    else if (_joinRequests.isEmpty)
                       CustomCard(
                         child: Text(
                           'Belum ada permintaan bergabung dari anggota.',
-                          style: AppTextStyles.body.copyWith(
-                            color: AppColors.textGray,
-                          ),
+                          style: AppTextStyles.body
+                              .copyWith(color: AppColors.textGray),
                         ),
                       )
                     else
@@ -655,17 +640,10 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                               children: [
                                 Row(
                                   children: [
-                                    CircleAvatar(
-                                      backgroundColor: AppColors.lightBlue,
-                                      child: Text(
-                                        request.studentName.isEmpty
-                                            ? '?'
-                                            : request.studentName.characters.first,
-                                        style: const TextStyle(
-                                          color: AppColors.primaryBlue,
-                                          fontWeight: FontWeight.w900,
-                                        ),
-                                      ),
+                                    _ProfileAvatar(
+                                      avatarUrl: null,
+                                      name: request.studentName,
+                                      radius: 20,
                                     ),
                                     const SizedBox(width: 12),
                                     Expanded(
@@ -674,41 +652,35 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                                             CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            request.studentName.isEmpty
-                                                ? 'Mahasiswa'
-                                                : request.studentName,
-                                            style: AppTextStyles.subtitle.copyWith(
-                                              fontSize: 15,
-                                            ),
+                                            request.studentName,
+                                            style: AppTextStyles.subtitle
+                                                .copyWith(fontSize: 15),
                                           ),
                                           Text(
-                                            'Peran: ${request.appliedRole}',
+                                            request.message.isEmpty
+                                                ? 'Tanpa pesan'
+                                                : request.message,
                                             style: AppTextStyles.muted,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ],
-                                      ),
-                                    ),
-                                    Text(
-                                      request.status,
-                                      style: AppTextStyles.small.copyWith(
-                                        color: AppColors.primaryBlue,
                                       ),
                                     ),
                                   ],
                                 ),
                                 const SizedBox(height: 10),
-                                Text(
-                                  request.message.isEmpty
-                                      ? 'Tidak ada pesan tambahan.'
-                                      : request.message,
-                                  style: AppTextStyles.body.copyWith(
-                                    color: AppColors.textGray,
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                if (request.status == 'Menunggu')
-                                  Row(
-                                    children: [
+                                Row(
+                                  children: [
+                                    OutlinedButton(
+                                      onPressed: () => _showMemberDetail(
+                                        request.studentId,
+                                        request.studentName,
+                                      ),
+                                      child: const Text('Lihat'),
+                                    ),
+                                    if (request.status == 'Menunggu') ...[
+                                      const SizedBox(width: 8),
                                       Expanded(
                                         child: PrimaryButton(
                                           label: 'Terima',
@@ -720,7 +692,7 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                                           ),
                                         ),
                                       ),
-                                      const SizedBox(width: 10),
+                                      const SizedBox(width: 8),
                                       Expanded(
                                         child: OutlinedButton(
                                           onPressed: () =>
@@ -732,7 +704,8 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                                         ),
                                       ),
                                     ],
-                                  ),
+                                  ],
+                                ),
                               ],
                             ),
                           ),
@@ -740,53 +713,149 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                       ),
                   ],
                   const SizedBox(height: 8),
+
+                  // ── Skill dibutuhkan ───────────────────────────────────────
                   const SectionHeader(title: 'Skill yang Dibutuhkan'),
                   const SizedBox(height: 10),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: team.requiredSkills
-                        .map((skill) => SkillChip(label: skill))
-                        .toList(),
+                    children:
+                        team.requiredSkills.map((s) => SkillChip(label: s)).toList(),
                   ),
                   const SizedBox(height: 22),
-                  PrimaryButton(
-                    label: isAlreadyMember
-                        ? 'Sudah menjadi anggota'
-                        : team.hasRequested
-                            ? 'Menunggu Persetujuan'
-                            : 'Ajukan Bergabung',
-                    icon: isAlreadyMember
-                        ? Icons.check_circle_rounded
-                        : team.hasRequested
-                            ? Icons.hourglass_top_rounded
-                            : Icons.send_rounded,
-                    onPressed: team.hasRequested || isAlreadyMember
-                        ? null
-                        : () async {
-                            final message = await state.requestJoinTeamApi(
-                              team.id,
-                            );
-                            if (!context.mounted) return;
-                            showDialog<void>(
-                              context: context,
-                              builder: (_) => AlertDialog(
-                                title: const Text('Berhasil'),
-                                content: Text(message),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context),
-                                    child: const Text('Oke'),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                  ),
+
+                  // ── Tombol bergabung ───────────────────────────────────────
+                  if (isFull && !isAlreadyMember)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        color: AppColors.backgroundSoftGray,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.borderLight),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.group_off_rounded,
+                              color: AppColors.textGray, size: 18),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Tim sudah penuh (${team.members.length}/${team.maxMembers})',
+                            style: AppTextStyles.body.copyWith(
+                              color: AppColors.textGray,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    PrimaryButton(
+                      label: isAlreadyMember
+                          ? 'Sudah menjadi anggota'
+                          : team.hasRequested
+                              ? 'Menunggu Persetujuan'
+                              : 'Ajukan Bergabung',
+                      icon: isAlreadyMember
+                          ? Icons.check_circle_rounded
+                          : team.hasRequested
+                              ? Icons.hourglass_top_rounded
+                              : Icons.send_rounded,
+                      onPressed: team.hasRequested || isAlreadyMember
+                          ? null
+                          : () => _showJoinDialog(context, state, team.id),
+                    ),
                 ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _posterPlaceholder(String? label, {bool loading = false}) {
+    return Container(
+      width: double.infinity,
+      height: 180,
+      decoration: BoxDecoration(
+        color: AppColors.backgroundSoftGray,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: loading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.photo_size_select_actual_rounded,
+                    size: 40, color: AppColors.primaryBlue),
+                const SizedBox(height: 10),
+                Text(
+                  label ?? 'Belum ada poster lomba.',
+                  style: AppTextStyles.body,
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+// ── Shared avatar widget ──────────────────────────────────────────────────────
+
+class _ProfileAvatar extends StatelessWidget {
+  const _ProfileAvatar({
+    required this.avatarUrl,
+    required this.name,
+    this.radius = 20,
+  });
+
+  final String? avatarUrl;
+  final String name;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    final initials = name.isEmpty ? '?' : name.characters.first.toUpperCase();
+    if (avatarUrl != null && avatarUrl!.isNotEmpty) {
+      return CircleAvatar(
+        radius: radius,
+        backgroundColor: AppColors.lightBlue,
+        child: ClipOval(
+          child: Image.network(
+            avatarUrl!,
+            width: radius * 2,
+            height: radius * 2,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => Text(
+              initials,
+              style: TextStyle(
+                color: AppColors.primaryBlue,
+                fontWeight: FontWeight.w900,
+                fontSize: radius * 0.8,
+              ),
+            ),
+            loadingBuilder: (_, child, progress) => progress == null
+                ? child
+                : SizedBox(
+                    width: radius * 2,
+                    height: radius * 2,
+                    child: const CircularProgressIndicator(strokeWidth: 2),
+                  ),
+          ),
+        ),
+      );
+    }
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: AppColors.lightBlue,
+      child: Text(
+        initials,
+        style: TextStyle(
+          color: AppColors.primaryBlue,
+          fontWeight: FontWeight.w900,
+          fontSize: radius * 0.8,
         ),
       ),
     );

@@ -435,6 +435,10 @@ insert into storage.buckets (id, name, public)
 values ('student-documents', 'student-documents', false)
 on conflict (id) do nothing;
 
+insert into storage.buckets (id, name, public)
+values ('mentorship-proposals', 'mentorship-proposals', true)
+on conflict (id) do nothing;
+
 create policy "users select own profile"
 on public.users for select to authenticated
 using (auth.uid() = id);
@@ -513,6 +517,17 @@ on public.join_requests for select to authenticated
 using (
   student_id = auth.uid()
   and public.current_user_role() = 'student'
+);
+
+create policy "join_requests select team leader"
+on public.join_requests for select to authenticated
+using (
+  public.current_user_role() = 'student'
+  and exists (
+    select 1 from public.teams
+    where teams.id = join_requests.team_id
+      and teams.leader_id = auth.uid()
+  )
 );
 
 create policy "join_requests insert own"
@@ -633,6 +648,10 @@ create policy "team posters select authenticated"
 on storage.objects for select to authenticated
 using (bucket_id = 'team-posters' and public.is_active_user());
 
+create policy "team posters select public"
+on storage.objects for select to public
+using (bucket_id = 'team-posters');
+
 create policy "team posters insert authenticated"
 on storage.objects for insert to authenticated
 with check (
@@ -678,4 +697,26 @@ with check (
   bucket_id = 'student-documents'
   and public.is_active_user()
   and (storage.foldername(name))[1] = auth.uid()::text
+);
+
+create policy "mentorship proposals select authenticated"
+on storage.objects for select to authenticated
+using (bucket_id = 'mentorship-proposals' and public.is_active_user());
+
+create policy "mentorship proposals insert authenticated"
+on storage.objects for insert to authenticated
+with check (
+  bucket_id = 'mentorship-proposals'
+  and public.is_active_user()
+);
+
+create policy "mentorship proposals update authenticated"
+on storage.objects for update to authenticated
+using (
+  bucket_id = 'mentorship-proposals'
+  and public.is_active_user()
+)
+with check (
+  bucket_id = 'mentorship-proposals'
+  and public.is_active_user()
 );

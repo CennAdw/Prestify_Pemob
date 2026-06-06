@@ -10,7 +10,7 @@ const String supabaseAnonKey =
 // Tambahkan semua redirect URL ini di Supabase Dashboard > Authentication
 // > URL Configuration > Redirect URLs, lalu aktifkan Google provider.
 const String mobileGoogleOAuthRedirectUrl =
-    'id.upi.connect.upi_connect_plus://login-callback/';
+    'id.upi.prestify://login-callback/';
 
 String get googleOAuthRedirectUrl =>
     kIsWeb ? Uri.base.origin : mobileGoogleOAuthRedirectUrl;
