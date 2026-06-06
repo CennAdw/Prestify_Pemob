@@ -1,6 +1,6 @@
 -- Jalankan migration ini setelah 20260603_secure_role_assignment.sql.
--- Menambahkan NIM, pendaftaran akun, verifikasi email Resend, dan pembatasan
--- akses data sampai email terverifikasi serta profil pendaftaran lengkap.
+-- Menambahkan NIM, pendaftaran akun, dan pembatasan akses data sampai
+-- email terverifikasi serta profil pendaftaran lengkap.
 
 alter table public.users
 add column if not exists nim text,
@@ -63,20 +63,6 @@ begin
   end if;
 end;
 $$;
-
-create table if not exists public.email_verification_codes (
-  user_id uuid primary key references auth.users(id) on delete cascade,
-  email text not null,
-  code_hash text not null,
-  expires_at timestamptz not null,
-  consumed_at timestamptz,
-  attempts integer not null default 0,
-  sent_count integer not null default 1,
-  window_started_at timestamptz not null default now(),
-  last_sent_at timestamptz not null default now(),
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-);
 
 -- Semua akun lama Prestify berasal dari Google, jadi email @upi.edu lama dapat
 -- dianggap telah diverifikasi oleh provider Google.
@@ -349,8 +335,6 @@ grant execute on function public.is_verified_lecturer(uuid) to authenticated;
 grant execute on function public.is_upi_email(text) to authenticated;
 grant execute on function public.is_active_user() to authenticated;
 
-alter table public.email_verification_codes enable row level security;
-
 drop policy if exists "users update own profile" on public.users;
 drop policy if exists "competitions select authenticated" on public.competitions;
 drop policy if exists "lecturers select authenticated" on public.lecturers;
@@ -379,7 +363,6 @@ create policy "team_members select authenticated"
 on public.team_members for select to authenticated
 using (public.is_active_user());
 
-revoke all on public.email_verification_codes from anon, authenticated;
 revoke insert, update on public.users from anon, authenticated;
 grant update (
   name,

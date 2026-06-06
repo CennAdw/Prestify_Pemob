@@ -22,26 +22,73 @@ Deno.serve(async (request) => {
 
   try {
     const authorization = request.headers.get("Authorization") ?? "";
-    if (!authorization) {
-      return errorResponse(401, "Session login tidak ditemukan.", "UNAUTHORIZED");
-    }
-
-    const userClient = createUserClient(authorization);
-    const { data: authData, error: authError } = await userClient.auth.getUser();
-    if (authError || !authData.user) {
-      return errorResponse(401, "Session login tidak valid.", "UNAUTHORIZED");
-    }
-
-    const email = normalizeEmail(authData.user.email);
-    if (!isUpiEmail(email)) {
+    const body = await request.json();
+    const requestEmail = normalizeEmail(body.email);
+    if (!requestEmail) {
       return errorResponse(
-        403,
-        "Prestify hanya menerima email @upi.edu.",
-        "INVALID_EMAIL_DOMAIN",
+        400,
+        "Email pendaftaran tidak dikirim.",
+        "INVALID_REGISTRATION_DATA",
       );
     }
 
-    const body = await request.json();
+    let profile: { id: string; role: string; email: string } | null = null;
+    let email = requestEmail;
+
+    const service = createServiceClient();
+
+    if (authorization) {
+      const userClient = createUserClient(authorization);
+      const { data: authData, error: authError } = await userClient.auth.getUser();
+      if (authError || !authData.user) {
+        return errorResponse(401, "Session login tidak valid.", "UNAUTHORIZED");
+      }
+
+      email = normalizeEmail(authData.user.email);
+      if (!isUpiEmail(email)) {
+        return errorResponse(
+          403,
+          "Prestify hanya menerima email @upi.edu.",
+          "INVALID_EMAIL_DOMAIN",
+        );
+      }
+      if (email !== requestEmail) {
+        return errorResponse(
+          403,
+          "Email yang dikirim tidak cocok dengan akun yang diautentikasi.",
+          "INVALID_EMAIL",
+        );
+      }
+
+      const { data: authProfile, error: profileError } = await service
+        .from("users")
+        .select("id, role, email")
+        .eq("id", authData.user.id)
+        .single();
+      if (profileError || !authProfile) {
+        return errorResponse(
+          404,
+          "Profil pengguna belum tersedia.",
+          "PROFILE_NOT_FOUND",
+        );
+      }
+      profile = authProfile;
+    } else {
+      const { data: emailProfile, error: profileError } = await service
+        .from("users")
+        .select("id, role, email")
+        .eq("email", requestEmail)
+        .single();
+      if (profileError || !emailProfile) {
+        return errorResponse(
+          404,
+          "Profil pengguna belum tersedia.",
+          "PROFILE_NOT_FOUND",
+        );
+      }
+      profile = emailProfile;
+    }
+
     const name = String(body.name ?? "").trim();
     const academicIdentifier = normalizeIdentifier(body.academic_identifier);
     const faculty = String(body.faculty ?? "").trim();
@@ -61,20 +108,6 @@ Deno.serve(async (request) => {
         400,
         "Isi minimal satu skill atau bidang keahlian.",
         "INVALID_REGISTRATION_DATA",
-      );
-    }
-
-    const service = createServiceClient();
-    const { data: profile, error: profileError } = await service
-      .from("users")
-      .select("id, role, email")
-      .eq("id", authData.user.id)
-      .single();
-    if (profileError || !profile) {
-      return errorResponse(
-        404,
-        "Profil pengguna belum tersedia.",
-        "PROFILE_NOT_FOUND",
       );
     }
 
@@ -117,7 +150,7 @@ Deno.serve(async (request) => {
         .from("lecturers")
         .select("id")
         .eq("nidn", savedIdentifier)
-        .neq("id", authData.user.id)
+        .neq("id", profile.id)
         .maybeSingle();
       if (duplicateLecturer) {
         return errorResponse(
@@ -131,7 +164,7 @@ Deno.serve(async (request) => {
         .from("users")
         .select("id")
         .eq("nim", savedIdentifier)
-        .neq("id", authData.user.id)
+        .neq("id", profile.id)
         .maybeSingle();
       if (duplicateStudent) {
         return errorResponse(
@@ -154,12 +187,12 @@ Deno.serve(async (request) => {
         registration_completed: true,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", authData.user.id);
+      .eq("id", profile.id);
     if (updateError) throw updateError;
 
     if (isLecturer) {
       const { error: lecturerError } = await service.from("lecturers").upsert({
-        id: authData.user.id,
+        id: profile.id,
         name,
         email,
         nidn: savedIdentifier,

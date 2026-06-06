@@ -6,6 +6,7 @@ import '../../core/constants/app_text_styles.dart';
 import '../../core/widgets/custom_card.dart';
 import '../../core/widgets/section_header.dart';
 import '../../core/widgets/skill_chip.dart';
+import '../../data/models/team_model.dart';
 import 'lecturer_finder_screen.dart';
 import 'team_detail_screen.dart';
 
@@ -18,6 +19,9 @@ class StudentHomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = AppStateScope.of(context);
     final student = state.student;
+    final studentSkills = student.skills
+        .map((skill) => skill.toLowerCase())
+        .toSet();
     final recommendedTeams = state.teams.take(2).toList();
     final popularCompetitions = state.competitions.take(3).toList();
 
@@ -216,7 +220,7 @@ class StudentHomeScreen extends StatelessWidget {
                                   ),
                                 ),
                                 SkillChip(
-                                  label: '${team.matchingScore}%',
+                                  label: '${_calculateMatchingScore(team, studentSkills)}%',
                                   backgroundColor: AppColors.successGreen
                                       .withAlpha(32),
                                   textColor: AppColors.successGreen,
@@ -231,7 +235,7 @@ class StudentHomeScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 12),
                             LinearProgressIndicator(
-                              value: team.matchingScore / 100,
+                              value: _calculateMatchingScore(team, studentSkills) / 100,
                               minHeight: 8,
                               borderRadius: BorderRadius.circular(99),
                               backgroundColor: AppColors.lightBlue,
@@ -295,6 +299,18 @@ class StudentHomeScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+    int _calculateMatchingScore(
+    TeamModel team,
+    Set<String> studentSkills,
+  ) {
+    if (team.requiredSkills.isEmpty) return 0;
+
+    final matchedCount = team.requiredSkills
+        .where((skill) => studentSkills.contains(skill.toLowerCase()))
+        .length;
+
+    return ((matchedCount / team.requiredSkills.length) * 100).round();
   }
 }
 

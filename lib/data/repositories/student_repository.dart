@@ -19,6 +19,28 @@ class StudentRepository {
     return asMapList(data).map(AchievementModel.fromJson).toList();
   }
 
+Future<UserModel> getUserDetails(String userId) async {
+  print("SEARCH USER = $userId");
+
+  final data = await SupabaseService.client
+      .from('users')
+      .select()
+      .eq('id', userId)
+      .limit(1);
+
+  print("RESULT = $data");
+
+  final users = asMapList(data);
+
+  print("USERS = $users");
+
+  if (users.isEmpty) {
+    throw StateError('User tidak ditemukan.');
+  }
+
+  return UserModel.fromJson(users.first);
+}
+
   Future<void> createAchievement({
     required String studentId,
     required String competitionName,
@@ -52,6 +74,7 @@ class StudentRepository {
     required int? batchYear,
     required List<String> skills,
     String? avatarUrl,
+    String? portfolioUrl,
   }) async {
     final payload = <String, dynamic>{
       'name': name,
@@ -62,6 +85,7 @@ class StudentRepository {
       'updated_at': DateTime.now().toIso8601String(),
     };
     if (avatarUrl != null) payload['avatar_url'] = avatarUrl;
+    if (portfolioUrl != null) payload['portfolio_url'] = portfolioUrl;
     final data = await SupabaseService.client
         .from('users')
         .update(payload)
@@ -71,6 +95,24 @@ class StudentRepository {
     final users = asMapList(data);
     if (users.isEmpty) throw StateError('Profil gagal diperbarui.');
     return UserModel.fromJson(users.first);
+  }
+
+  Future<String> uploadStudentDocument({
+    required String userId,
+    required Uint8List bytes,
+    required String fileName,
+    required String contentType,
+  }) async {
+    final extension = _extensionFromFileName(fileName);
+    final path =
+        '$userId/portfolio-${DateTime.now().millisecondsSinceEpoch}.$extension';
+    final bucket = SupabaseService.client.storage.from('student-documents');
+    await bucket.uploadBinary(
+      path,
+      bytes,
+      fileOptions: FileOptions(contentType: contentType, upsert: true),
+    );
+    return bucket.getPublicUrl(path);
   }
 
   Future<String> uploadProfilePhoto({

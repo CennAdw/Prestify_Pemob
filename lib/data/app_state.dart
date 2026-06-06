@@ -1,3 +1,4 @@
+
 import 'package:flutter/foundation.dart';
 
 import 'models/achievement_model.dart';
@@ -11,6 +12,7 @@ import 'repositories/competition_repository.dart';
 import 'repositories/lecturer_repository.dart';
 import 'repositories/student_repository.dart';
 import 'repositories/team_repository.dart';
+import '../core/services/supabase_service.dart';
 
 class ApplicationHistoryItem {
   const ApplicationHistoryItem({
@@ -245,128 +247,90 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<LoginResult> registerWithPassword({
-    required String email,
-    required String password,
-    required String name,
-    required String academicIdentifier,
-    required String faculty,
-    required String studyProgram,
-    required int? batchYear,
-    required List<String> skills,
-  }) async {
-    isAuthLoading = true;
+Future<LoginResult> registerWithPassword({
+  required String email,
+  required String password,
+  required String name,
+  required String academicIdentifier,
+  required String faculty,
+  required String studyProgram,
+  required int? batchYear,
+  required List<String> skills,
+}) async {
+  isAuthLoading = true;
+  notifyListeners();
+
+  try {
+    // 1. Buat akun di Supabase Auth — session akan null (Confirm Email ON)
+    await authRepository.signUpWithPassword(
+      email: email,
+      password: password,
+    );
+
+    // 2. Simpan data profil via Edge Function (pakai anon key, cari user by email)
+    await authRepository.completeRegistration(
+      email: email, // ✅ tambah email
+      name: name,
+      academicIdentifier: academicIdentifier,
+      faculty: faculty,
+      studyProgram: studyProgram,
+      batchYear: batchYear,
+      skills: skills,
+    );
+
+    // 3. Akun berhasil dibuat — user bisa langsung login
+    return LoginResult(
+      success: true,
+      route: '/login',
+      email: email.trim().toLowerCase(),
+      message: 'Akun berhasil dibuat. Silakan login dengan email dan password Anda.',
+    );
+  } catch (error, stackTrace) {
+    _logSupabaseError('registerWithPassword', error, stackTrace);
+    return _authFailure(error, prefix: 'Pendaftaran gagal');
+  } finally {
+    isAuthLoading = false;
     notifyListeners();
-
-    try {
-      await authRepository.signUpWithPassword(email: email, password: password);
-      await authRepository.completeRegistration(
-        name: name,
-        academicIdentifier: academicIdentifier,
-        faculty: faculty,
-        studyProgram: studyProgram,
-        batchYear: batchYear,
-        skills: skills,
-      );
-      final message = await authRepository.sendVerificationCode(email);
-      await authRepository.signOut();
-      return LoginResult(
-        success: true,
-        route: '/verify-email',
-        email: email.trim().toLowerCase(),
-        message: message,
-      );
-    } catch (error, stackTrace) {
-      _logSupabaseError('registerWithPassword', error, stackTrace);
-      try {
-        await authRepository.signOut();
-      } catch (signOutError, signOutStackTrace) {
-        _logSupabaseError(
-          'registerWithPassword.signOut',
-          signOutError,
-          signOutStackTrace,
-        );
-      }
-      return _authFailure(error, prefix: 'Pendaftaran gagal');
-    } finally {
-      isAuthLoading = false;
-      notifyListeners();
-    }
   }
+}
 
-  Future<LoginResult> completeCurrentRegistration({
-    required String name,
-    required String academicIdentifier,
-    required String faculty,
-    required String studyProgram,
-    required int? batchYear,
-    required List<String> skills,
-  }) async {
-    isAuthLoading = true;
+Future<LoginResult> completeCurrentRegistration({
+  required String name,
+  required String academicIdentifier,
+  required String faculty,
+  required String studyProgram,
+  required int? batchYear,
+  required List<String> skills,
+}) async {
+  isAuthLoading = true;
+  notifyListeners();
+
+  try {
+    final email = SupabaseService.client.auth.currentUser?.email ?? '';
+
+    await authRepository.completeRegistration(
+      email: email,
+      name: name,
+      academicIdentifier: academicIdentifier,
+      faculty: faculty,
+      studyProgram: studyProgram,
+      batchYear: batchYear,
+      skills: skills,
+    );
+
+    final user = await authRepository.completeAuthenticatedLogin();
+    return await _loginResultForUser(
+      user,
+      successMessage: 'Profil pendaftaran berhasil dilengkapi.',
+    );
+  } catch (error, stackTrace) {
+    _logSupabaseError('completeCurrentRegistration', error, stackTrace);
+    return _authFailure(error, prefix: 'Pendaftaran gagal');
+  } finally {
+    isAuthLoading = false;
     notifyListeners();
-
-    try {
-      final user = await authRepository.completeRegistration(
-        name: name,
-        academicIdentifier: academicIdentifier,
-        faculty: faculty,
-        studyProgram: studyProgram,
-        batchYear: batchYear,
-        skills: skills,
-      );
-      return await _loginResultForUser(
-        user,
-        successMessage: 'Profil pendaftaran berhasil dilengkapi.',
-      );
-    } catch (error, stackTrace) {
-      _logSupabaseError('completeCurrentRegistration', error, stackTrace);
-      return _authFailure(error, prefix: 'Pendaftaran gagal');
-    } finally {
-      isAuthLoading = false;
-      notifyListeners();
-    }
   }
-
-  Future<LoginResult> sendVerificationCode(String email) async {
-    isAuthLoading = true;
-    notifyListeners();
-    try {
-      final message = await authRepository.sendVerificationCode(email);
-      return LoginResult(success: true, route: '', message: message);
-    } catch (error, stackTrace) {
-      _logSupabaseError('sendVerificationCode', error, stackTrace);
-      return _authFailure(error, prefix: 'Kode gagal dikirim');
-    } finally {
-      isAuthLoading = false;
-      notifyListeners();
-    }
-  }
-
-  Future<LoginResult> verifyEmailCode({
-    required String email,
-    required String code,
-  }) async {
-    isAuthLoading = true;
-    notifyListeners();
-    try {
-      final message = await authRepository.verifyEmailCode(
-        email: email,
-        code: code,
-      );
-      return LoginResult(
-        success: true,
-        route: '/login',
-        email: email.trim().toLowerCase(),
-        message: message,
-      );
-    } catch (error, stackTrace) {
-      _logSupabaseError('verifyEmailCode', error, stackTrace);
-      return _authFailure(error, prefix: 'Verifikasi gagal');
-    } finally {
-      isAuthLoading = false;
-      notifyListeners();
-    }
-  }
+}
 
   Future<void> signOut() async {
     try {
@@ -561,7 +525,7 @@ class AppState extends ChangeNotifier {
         appliedRole: 'Mobile Developer',
         message:
             'Saya ingin bergabung dan membantu pengembangan aplikasi serta pitching.',
-        matchingScore: team.matchingScore,
+        studentSkills: student.skills,
       );
       requestJoinTeam(teamId);
       _addApplicationHistory(team, 'Menunggu', 'Dari Supabase');
@@ -605,8 +569,21 @@ class AppState extends ChangeNotifier {
     required String description,
     required String skills,
     required String competition,
+    Uint8List? posterBytes,
+    String? posterFileName,
+    String? posterContentType,
+    String? notes,
   }) async {
     try {
+      String? posterUrl;
+      if (posterBytes != null && posterFileName != null && posterContentType != null) {
+        posterUrl = await teamRepository.uploadTeamPoster(
+          bytes: posterBytes,
+          fileName: posterFileName,
+          contentType: posterContentType,
+        );
+      }
+
       await teamRepository.createTeam(
         competitionName: competition,
         leaderId: student.id,
@@ -614,12 +591,61 @@ class AppState extends ChangeNotifier {
         description: description,
         requiredSkills: skills,
         requiredRoles: type,
+        posterUrl: posterUrl,
+        notes: notes,
       );
       await loadTeams();
       return 'Postingan recruitment berhasil dipublikasikan.';
     } catch (error, stackTrace) {
       _logSupabaseError('publishRecruitmentPost', error, stackTrace);
       return 'Gagal mempublikasikan postingan: $error';
+    }
+  }
+
+  Future<String> uploadStudentPortfolioDocument({
+    required Uint8List bytes,
+    required String fileName,
+    required String contentType,
+  }) async {
+    try {
+      final portfolioUrl = await studentRepository.uploadStudentDocument(
+        userId: student.id,
+        bytes: bytes,
+        fileName: fileName,
+        contentType: contentType,
+      );
+      student = await studentRepository.updateProfile(
+        userId: student.id,
+        name: student.name,
+        faculty: student.faculty ?? '',
+        studyProgram: student.program ?? '',
+        batchYear: student.year,
+        skills: student.skills,
+        portfolioUrl: portfolioUrl,
+      );
+      notifyListeners();
+      return 'File CV/Portfolio berhasil diunggah.';
+    } catch (error, stackTrace) {
+      _logSupabaseError('uploadStudentPortfolioDocument', error, stackTrace);
+      return 'Gagal mengunggah CV/Portfolio: $error';
+    }
+  }
+
+  Future<String> respondToJoinRequest({
+    required String requestId,
+    required String status,
+  }) async {
+    try {
+      await teamRepository.respondJoinRequest(
+        requestId: requestId,
+        status: status,
+      );
+      return status == 'Diterima'
+          ? 'Permintaan berhasil diterima.'
+          : 'Permintaan berhasil ditolak.';
+    } catch (error, stackTrace) {
+      _logSupabaseError('respondToJoinRequest', error, stackTrace);
+      return 'Gagal memproses permintaan: $error';
     }
   }
 
@@ -770,11 +796,11 @@ class AppState extends ChangeNotifier {
       await authRepository.signOut();
       return LoginResult(
         success: false,
-        route: '/verify-email',
+        route: '/login',
         code: 'EMAIL_NOT_VERIFIED',
         email: user.email,
         message:
-            'Email belum diverifikasi. Masukkan kode yang dikirim ke email UPI.',
+            'Email belum diverifikasi. Silakan periksa email UPI Anda dan klik link konfirmasi.',
       );
     }
 

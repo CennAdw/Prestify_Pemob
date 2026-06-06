@@ -6,6 +6,7 @@ import '../../core/constants/app_text_styles.dart';
 import '../../core/widgets/custom_card.dart';
 import '../../core/widgets/section_header.dart';
 import '../../core/widgets/skill_chip.dart';
+import '../../data/app_state.dart';
 
 class ApplicationHistoryScreen extends StatefulWidget {
   const ApplicationHistoryScreen({super.key});
@@ -27,6 +28,16 @@ class _ApplicationHistoryScreenState extends State<ApplicationHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     final state = AppStateScope.of(context);
+    
+    final pendingRequests = state.applicationHistory
+        .where((item) => item.status == 'Menunggu')
+        .toList();
+    final approvedRequests = state.applicationHistory
+        .where((item) => item.status == 'Diterima')
+        .toList();
+    final rejectedRequests = state.applicationHistory
+        .where((item) => item.status == 'Ditolak')
+        .toList();
 
     return SafeArea(
       child: RefreshIndicator(
@@ -52,8 +63,7 @@ class _ApplicationHistoryScreenState extends State<ApplicationHistoryScreen> {
               style: AppTextStyles.body.copyWith(color: AppColors.textGray),
             ),
             const SizedBox(height: 18),
-            const SectionHeader(title: 'Ajuan Cari Tim'),
-            const SizedBox(height: 10),
+            
             if (state.isApplicationHistoryLoading) ...[
               const LinearProgressIndicator(
                 minHeight: 4,
@@ -75,6 +85,7 @@ class _ApplicationHistoryScreenState extends State<ApplicationHistoryScreen> {
               ),
               const SizedBox(height: 12),
             ],
+            
             if (state.applicationHistory.isEmpty)
               CustomCard(
                 child: Column(
@@ -94,69 +105,112 @@ class _ApplicationHistoryScreenState extends State<ApplicationHistoryScreen> {
                   ],
                 ),
               )
-            else
-              ...state.applicationHistory.map(
-                (item) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: CustomCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                item.teamName,
-                                style: AppTextStyles.subtitle,
-                              ),
-                            ),
-                            SkillChip(
-                              label: item.status,
-                              backgroundColor: AppColors.accentYellow.withAlpha(
-                                48,
-                              ),
-                              textColor: AppColors.deepNavy,
-                              compact: true,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(item.competitionName, style: AppTextStyles.muted),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                item.appliedRole,
-                                style: AppTextStyles.small.copyWith(
-                                  color: AppColors.textDark,
-                                ),
-                              ),
-                            ),
-                            Text(
-                              '${item.matchingScore}% match',
-                              style: AppTextStyles.small.copyWith(
-                                color: AppColors.primaryBlue,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        LinearProgressIndicator(
-                          value: item.matchingScore / 100,
-                          minHeight: 8,
-                          borderRadius: BorderRadius.circular(99),
-                          backgroundColor: AppColors.lightBlue,
-                          color: AppColors.successGreen,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(item.createdLabel, style: AppTextStyles.small),
-                      ],
+            else ...[
+              if (pendingRequests.isNotEmpty) ...[
+                const SectionHeader(title: 'Sedang Diajukan'),
+                const SizedBox(height: 10),
+                ...pendingRequests.map((item) => _buildApplicationCard(item)),
+                const SizedBox(height: 18),
+              ],
+              
+              if (approvedRequests.isNotEmpty) ...[
+                const SectionHeader(title: 'Diterima'),
+                const SizedBox(height: 10),
+                ...approvedRequests.map((item) => _buildApplicationCard(item)),
+                const SizedBox(height: 18),
+              ],
+              
+              if (rejectedRequests.isNotEmpty) ...[
+                const SectionHeader(title: 'Ditolak'),
+                const SizedBox(height: 10),
+                ...rejectedRequests.map((item) => _buildApplicationCard(item)),
+                const SizedBox(height: 18),
+              ],
+              
+              if (pendingRequests.isEmpty && approvedRequests.isEmpty && rejectedRequests.isEmpty)
+                CustomCard(
+                  child: Text(
+                    'Tidak ada ajuan dengan status yang diketahui.',
+                    style: AppTextStyles.body.copyWith(
+                      color: AppColors.textGray,
                     ),
                   ),
                 ),
-              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildApplicationCard(ApplicationHistoryItem item) {
+    Color statusColor;
+    if (item.status == 'Menunggu') {
+      statusColor = AppColors.accentYellow.withAlpha(48);
+    } else if (item.status == 'Diterima') {
+      statusColor = const Color(0xFFEAF8EE);
+    } else {
+      statusColor = const Color(0xFFFFF5F3);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: CustomCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    item.teamName,
+                    style: AppTextStyles.subtitle,
+                  ),
+                ),
+                SkillChip(
+                  label: item.status,
+                  backgroundColor: statusColor,
+                  textColor: item.status == 'Diterima' 
+                      ? AppColors.successGreen 
+                      : item.status == 'Ditolak' 
+                          ? AppColors.alertCoral 
+                          : AppColors.deepNavy,
+                  compact: true,
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(item.competitionName, style: AppTextStyles.muted),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    item.appliedRole,
+                    style: AppTextStyles.small.copyWith(
+                      color: AppColors.textDark,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${item.matchingScore}% match',
+                  style: AppTextStyles.small.copyWith(
+                    color: AppColors.primaryBlue,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            LinearProgressIndicator(
+              value: item.matchingScore / 100,
+              minHeight: 8,
+              borderRadius: BorderRadius.circular(99),
+              backgroundColor: AppColors.lightBlue,
+              color: AppColors.successGreen,
+            ),
+            const SizedBox(height: 8),
+            Text(item.createdLabel, style: AppTextStyles.small),
           ],
         ),
       ),

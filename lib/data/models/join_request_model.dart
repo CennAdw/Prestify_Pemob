@@ -11,6 +11,8 @@ class JoinRequestModel {
     required this.status,
     this.teamName = '',
     this.competitionName = '',
+    this.studentName = '',
+    this.studentAvatarUrl = '',
   });
 
   final String id;
@@ -22,10 +24,16 @@ class JoinRequestModel {
   final String status;
   final String teamName;
   final String competitionName;
+  final String studentName;
+  final String studentAvatarUrl;
 
   factory JoinRequestModel.fromJson(Map<String, dynamic> json) {
     final team = json['teams'] is Map<String, dynamic>
         ? json['teams'] as Map<String, dynamic>
+        : const <String, dynamic>{};
+
+    final student = json['users'] is Map<String, dynamic>
+        ? json['users'] as Map<String, dynamic>
         : const <String, dynamic>{};
 
     return JoinRequestModel(
@@ -40,6 +48,8 @@ class JoinRequestModel {
       competitionName: parseString(
         team['competition_name'] ?? json['competition_name'],
       ),
+      studentName: parseString(student['name']),
+      studentAvatarUrl: parseString(student['avatar_url']),
     );
   }
 }

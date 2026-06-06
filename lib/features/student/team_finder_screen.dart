@@ -41,6 +41,10 @@ class _TeamFinderScreenState extends State<TeamFinderScreen> {
     final state = AppStateScope.of(context);
     final categories = const ['Semua', 'GEMASTIK', 'LIDM', 'Data'];
     final query = _searchController.text.toLowerCase();
+    final studentSkills = state.student.skills
+        .map((skill) => skill.toLowerCase())
+        .toSet();
+    
     final filteredTeams = state.teams.where((team) {
       final matchesQuery =
           team.name.toLowerCase().contains(query) ||
@@ -153,7 +157,7 @@ class _TeamFinderScreenState extends State<TeamFinderScreen> {
               ...filteredTeams.map(
                 (team) => Padding(
                   padding: const EdgeInsets.only(bottom: 14),
-                  child: _TeamCard(team: team),
+                  child: _TeamCard(team: team, studentSkills: studentSkills,),
                 ),
               ),
           ],
@@ -164,12 +168,18 @@ class _TeamFinderScreenState extends State<TeamFinderScreen> {
 }
 
 class _TeamCard extends StatelessWidget {
-  const _TeamCard({required this.team});
+  const _TeamCard({
+    required this.team,
+    required this.studentSkills,
+  });
 
   final TeamModel team;
+  final Set<String> studentSkills;
 
   @override
   Widget build(BuildContext context) {
+    final score = _calculateMatchingScore(team, studentSkills);
+
     return CustomCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -234,7 +244,7 @@ class _TeamCard extends StatelessWidget {
                 ),
               ),
               Text(
-                '${team.matchingScore}%',
+                '$score%',
                 style: AppTextStyles.subtitle.copyWith(
                   color: AppColors.primaryBlue,
                 ),
@@ -243,11 +253,11 @@ class _TeamCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           LinearProgressIndicator(
-            value: team.matchingScore / 100,
+            value: score / 100,
             minHeight: 8,
             borderRadius: BorderRadius.circular(99),
             backgroundColor: AppColors.lightBlue,
-            color: _scoreColor(team.matchingScore),
+            color: _scoreColor(score),
           ),
           const SizedBox(height: 16),
           PrimaryButton(
@@ -263,6 +273,14 @@ class _TeamCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  int _calculateMatchingScore(TeamModel team, Set<String> studentSkills) {
+    if (team.requiredSkills.isEmpty) return 0;
+    final matchedCount = team.requiredSkills
+        .where((skill) => studentSkills.contains(skill.toLowerCase()))
+        .length;
+    return ((matchedCount / team.requiredSkills.length) * 100).round();
   }
 
   Color _scoreColor(int score) {

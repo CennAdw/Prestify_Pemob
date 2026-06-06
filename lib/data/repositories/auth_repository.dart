@@ -55,7 +55,8 @@ class AuthRepository {
     return completeAuthenticatedLogin();
   }
 
-  Future<UserModel> signUpWithPassword({
+  // ✅ Return void — tidak butuh session, tidak panggil completeAuthenticatedLogin
+  Future<void> signUpWithPassword({
     required String email,
     required String password,
   }) async {
@@ -70,19 +71,16 @@ class AuthRepository {
     final response = await SupabaseService.client.auth.signUp(
       email: normalizedEmail,
       password: password,
+      emailRedirectTo: emailVerificationRedirectUrl,
     );
+
     if (response.user == null) {
       throw const AuthRepositoryException(
         message: 'Akun gagal dibuat di Supabase Auth.',
       );
     }
-    if (response.session == null) {
-      throw const AuthRepositoryException(
-        message:
-            'Session pendaftaran tidak tersedia. Matikan Confirm email di Supabase karena verifikasi email menggunakan Resend.',
-      );
-    }
-    return completeAuthenticatedLogin();
+    // Session akan null karena Confirm Email ON — itu normal
+    // completeRegistration dan sendVerificationCode dipanggil setelahnya
   }
 
   Future<UserModel> completeAuthenticatedLogin() async {
@@ -103,9 +101,7 @@ class AuthRepository {
       );
     }
 
-    // Role, provider, dan status verifikasi dibuat di database. Aplikasi tidak
-    // pernah mengirim atau menentukan role pengguna.
-    await client.rpc('ensure_current_user_profile');
+    await client.rpc('ensure_current_user_profile'); // ✅ hanya sekali
 
     final data = await client
         .from('users')
@@ -122,7 +118,9 @@ class AuthRepository {
     return UserModel.fromJson(users.first);
   }
 
-  Future<UserModel> completeRegistration({
+  // ✅ Return void, tambah param email, pakai _invokeMapAnon
+  Future<void> completeRegistration({
+    required String email,
     required String name,
     required String academicIdentifier,
     required String faculty,
@@ -130,9 +128,10 @@ class AuthRepository {
     required int? batchYear,
     required List<String> skills,
   }) async {
-    await _invokeMap(
+    await _invokeMapAnon(
       'complete-registration',
       body: {
+        'email': email.trim().toLowerCase(),
         'name': name.trim(),
         'academic_identifier': normalizeAcademicIdentifier(academicIdentifier),
         'faculty': faculty.trim(),
@@ -141,41 +140,40 @@ class AuthRepository {
         'skills': skills,
       },
     );
-    return completeAuthenticatedLogin();
-  }
-
-  Future<String> sendVerificationCode(String email) async {
-    final data = await _invokeMap(
-      'send-verification-code',
-      body: {'email': email.trim().toLowerCase()},
-    );
-    return data['message']?.toString() ??
-        'Kode verifikasi telah dikirim ke email UPI.';
-  }
-
-  Future<String> verifyEmailCode({
-    required String email,
-    required String code,
-  }) async {
-    final data = await _invokeMap(
-      'verify-email-code',
-      body: {'email': email.trim().toLowerCase(), 'code': code.trim()},
-    );
-    return data['message']?.toString() ?? 'Email berhasil diverifikasi.';
   }
 
   Future<void> signOut() {
     return SupabaseService.client.auth.signOut();
   }
 
+  // Untuk call yang butuh session (login, dsb)
   Future<Map<String, dynamic>> _invokeMap(
     String functionName, {
     required Map<String, dynamic> body,
+  }) async {
+    final token =
+        SupabaseService.client.auth.currentSession?.accessToken;
+    return _invoke(functionName, body: body, token: token);
+  }
+
+  // ✅ Untuk call saat register — tidak ada session, pakai anon key
+  Future<Map<String, dynamic>> _invokeMapAnon(
+    String functionName, {
+    required Map<String, dynamic> body,
+  }) async {
+    return _invoke(functionName, body: body, token: null);
+  }
+
+  Future<Map<String, dynamic>> _invoke(
+    String functionName, {
+    required Map<String, dynamic> body,
+    required String? token,
   }) async {
     try {
       final response = await SupabaseService.client.functions.invoke(
         functionName,
         body: body,
+        headers: token != null ? {'Authorization': 'Bearer $token'} : null,
       );
       final data = response.data;
       if (data is Map<String, dynamic>) return data;
@@ -185,8 +183,7 @@ class AuthRepository {
       final details = error.details;
       if (details is Map) {
         throw AuthRepositoryException(
-          message:
-              details['message']?.toString() ??
+          message: details['message']?.toString() ??
               'Request autentikasi gagal (${error.status}).',
           code: details['code']?.toString(),
           email: details['email']?.toString(),

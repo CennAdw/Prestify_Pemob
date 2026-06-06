@@ -11,7 +11,6 @@ import '../../core/widgets/custom_card.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../data/app_state.dart';
 import 'registration_screen.dart';
-import 'verify_email_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -89,18 +88,6 @@ class _LoginScreenState extends State<LoginScreen> {
       context,
     ).showSnackBar(SnackBar(content: Text(result.message)));
 
-    if (result.code == 'EMAIL_NOT_VERIFIED') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => VerifyEmailScreen(
-            initialEmail: result.email ?? '',
-            emailLocked: result.email?.isNotEmpty ?? false,
-          ),
-        ),
-      );
-      return;
-    }
     if (!result.success) return;
     Navigator.pushNamedAndRemoveUntil(context, result.route, (_) => false);
   }
@@ -188,22 +175,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         icon: Icons.login_rounded,
                         onPressed: state.isAuthLoading ? null : _signInWithNim,
                       ),
-                      const SizedBox(height: 8),
-                      Align(
-                        alignment: Alignment.center,
-                        child: TextButton(
-                          onPressed: state.isAuthLoading
-                              ? null
-                              : () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const VerifyEmailScreen(),
-                                  ),
-                                ),
-                          child: const Text('Belum verifikasi email?'),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 16),
                       Row(
                         children: [
                           const Expanded(child: Divider()),

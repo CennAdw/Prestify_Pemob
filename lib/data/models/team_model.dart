@@ -1,13 +1,15 @@
 import 'model_helpers.dart';
 
 class TeamMember {
-  const TeamMember({required this.name, required this.role});
+  const TeamMember({required this.studentId, required this.name, required this.role});
 
+  final String studentId;
   final String name;
   final String role;
 
   factory TeamMember.fromJson(Map<String, dynamic> json) {
     return TeamMember(
+      studentId: parseString(json['student_id'] ?? json['studentId'] ?? ''),
       name: parseString(json['name'] ?? json['student_name']),
       role: parseString(json['role'] ?? json['role_in_team']),
     );
@@ -27,6 +29,8 @@ class TeamModel {
     required this.matchingScore,
     required this.status,
     required this.members,
+    this.posterUrl = '',
+    this.notes = '',
     this.leaderId = '',
     this.hasRequested = false,
   });
@@ -42,6 +46,8 @@ class TeamModel {
   final int matchingScore;
   final String status;
   final List<TeamMember> members;
+  final String posterUrl;
+  final String notes;
   final String leaderId;
   final bool hasRequested;
 
@@ -76,6 +82,10 @@ class TeamModel {
         json['recruitment_status'] ?? json['status'],
         fallback: 'Open Recruitment',
       ),
+      posterUrl: parseString(
+        json['poster_url'] ?? json['posterUrl'] ?? json['posterImageUrl'],
+      ),
+      notes: parseString(json['notes'] ?? json['competition_notes']),
       leaderId: parseString(json['leader_id'] ?? json['leaderId']),
       members: membersJson is List
           ? membersJson
@@ -100,6 +110,8 @@ class TeamModel {
     int? matchingScore,
     String? status,
     List<TeamMember>? members,
+    String? posterUrl,
+    String? notes,
     String? leaderId,
     bool? hasRequested,
   }) {
@@ -115,6 +127,8 @@ class TeamModel {
       matchingScore: matchingScore ?? this.matchingScore,
       status: status ?? this.status,
       members: members ?? this.members,
+      posterUrl: posterUrl ?? this.posterUrl,
+      notes: notes ?? this.notes,
       leaderId: leaderId ?? this.leaderId,
       hasRequested: hasRequested ?? this.hasRequested,
     );

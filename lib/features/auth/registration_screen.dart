@@ -8,7 +8,6 @@ import '../../core/services/supabase_service.dart';
 import '../../core/widgets/custom_card.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../data/models/user_model.dart';
-import 'verify_email_screen.dart';
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
@@ -110,19 +109,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     ).showSnackBar(SnackBar(content: Text(result.message)));
     if (!result.success) return;
 
-    if (result.route == '/verify-email') {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (_) => VerifyEmailScreen(
-            initialEmail: result.email ?? _emailController.text.trim(),
-            emailLocked: true,
-          ),
-        ),
-        (_) => false,
-      );
-      return;
-    }
     Navigator.pushNamedAndRemoveUntil(context, result.route, (_) => false);
   }
 

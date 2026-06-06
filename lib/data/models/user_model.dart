@@ -35,6 +35,7 @@ class UserModel {
     this.year,
     this.skills = const [],
     this.avatarUrl,
+    this.portfolioUrl,
     this.emailVerified = false,
     this.registrationCompleted = false,
   });
@@ -49,6 +50,7 @@ class UserModel {
   final int? year;
   final List<String> skills;
   final String? avatarUrl;
+  final String? portfolioUrl;
   final bool emailVerified;
   final bool registrationCompleted;
 
@@ -82,6 +84,7 @@ class UserModel {
                     .toList() ??
                 const []),
       avatarUrl: json['avatar_url']?.toString(),
+      portfolioUrl: json['portfolio_url']?.toString(),
       emailVerified: json['email_verified_at'] != null,
       registrationCompleted: json['registration_completed'] == true,
     );
@@ -98,6 +101,7 @@ class UserModel {
     int? year,
     List<String>? skills,
     String? avatarUrl,
+    String? portfolioUrl,
     bool? emailVerified,
     bool? registrationCompleted,
   }) {
@@ -112,6 +116,7 @@ class UserModel {
       year: year ?? this.year,
       skills: skills ?? this.skills,
       avatarUrl: avatarUrl ?? this.avatarUrl,
+      portfolioUrl: portfolioUrl ?? this.portfolioUrl,
       emailVerified: emailVerified ?? this.emailVerified,
       registrationCompleted:
           registrationCompleted ?? this.registrationCompleted,

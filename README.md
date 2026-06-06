@@ -8,8 +8,7 @@ pembimbing, dan mengelola portofolio mahasiswa UPI.
 - Hanya email dengan domain tepat `@upi.edu` yang diterima.
 - Login tersedia melalui NIM/NIDN + password dan Google.
 - Password disimpan dan di-hash oleh Supabase Auth, bukan tabel publik.
-- Verifikasi email password menggunakan kode dari Resend, bukan email
-  confirmation bawaan Supabase.
+- Verifikasi email menggunakan built-in email confirmation dari Supabase.
 - Akun Google `@upi.edu` dianggap terverifikasi oleh provider Google.
 - Akun Google baru diarahkan ke halaman pendaftaran tanpa meminta email dan
   password lagi.
@@ -33,8 +32,8 @@ jalankan file tersebut pada database yang sudah berisi data produksi.
 
 5. Isi URL dan anon key di `lib/core/constants/supabase_config.dart`.
 6. Aktifkan Google di Authentication > Providers.
-7. Di Authentication > Providers > Email, matikan **Confirm email** karena
-   verifikasi email dikelola oleh Resend.
+7. Di Authentication > Providers > Email, pastikan **Confirm email** diaktifkan
+   (settings default). Supabase akan mengirim email verification secara otomatis.
 8. Di Google Cloud Console, tambahkan callback Supabase sebagai **Authorized
    redirect URI**:
 
@@ -52,30 +51,12 @@ http://localhost:PORT
 
 Gunakan origin web yang sesuai saat menjalankan Flutter Web.
 
-## Resend Setup
-
-1. Buat akun Resend.
-2. Verifikasi domain pengirim di Resend.
-3. Buat API key Resend.
-4. Simpan secret di Supabase, jangan masukkan API key ke Flutter:
-
-```powershell
-supabase secrets set RESEND_API_KEY=re_xxxxxxxxx
-supabase secrets set "RESEND_FROM_EMAIL=Prestify <noreply@domain-terverifikasi.com>"
-supabase secrets set VERIFICATION_CODE_PEPPER=rahasia-panjang-acak
-```
-
 5. Deploy Edge Functions:
 
 ```powershell
-supabase functions deploy send-verification-code --no-verify-jwt
-supabase functions deploy verify-email-code --no-verify-jwt
 supabase functions deploy login-with-nim --no-verify-jwt
 supabase functions deploy complete-registration
 ```
-
-Resend tetap memiliki batas sesuai paket akun. Prestify juga membatasi pengiriman
-kode untuk mencegah spam.
 
 ## Role Dosen Terverifikasi
 

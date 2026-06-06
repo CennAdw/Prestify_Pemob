@@ -1,7 +1,7 @@
 -- Jalankan file ini di Supabase SQL Editor.
 -- Schema produksi awal: data kosong, autentikasi memakai Supabase Auth.
--- Aktifkan Google provider dan matikan Confirm email karena verifikasi email
--- menggunakan kode dari Resend melalui Supabase Edge Functions.
+-- Aktifkan Google provider dan enable Confirm email (default).
+-- Supabase akan mengirim email verification secara otomatis.
 -- Role tidak dipilih dari aplikasi. Email dosen harus dimasukkan ke
 -- public.lecturer_allowlist oleh pengelola melalui SQL Editor.
 
@@ -17,7 +17,6 @@ drop function if exists public.is_verified_lecturer(uuid) cascade;
 drop function if exists public.is_upi_email(text) cascade;
 drop function if exists public.is_active_user() cascade;
 
-drop table if exists public.email_verification_codes cascade;
 drop table if exists public.achievements cascade;
 drop table if exists public.mentorship_requests cascade;
 drop table if exists public.join_requests cascade;
@@ -62,20 +61,7 @@ create table public.users (
   avatar_url text,
   email_verified_at timestamptz,
   registration_completed boolean not null default false,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-);
-
-create table public.email_verification_codes (
-  user_id uuid primary key references auth.users(id) on delete cascade,
-  email text not null,
-  code_hash text not null,
-  expires_at timestamptz not null,
-  consumed_at timestamptz,
-  attempts integer not null default 0,
-  sent_count integer not null default 1,
-  window_started_at timestamptz not null default now(),
-  last_sent_at timestamptz not null default now(),
+  portfolio_url text,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -119,6 +105,8 @@ create table public.teams (
   description text,
   required_roles text,
   required_skills text default '',
+  poster_url text,
+  notes text default '',
   recruitment_status text default 'Open Recruitment',
   progress_status text default 'Recruiting',
   mentor_id uuid references public.lecturers(id) on delete set null,
@@ -426,7 +414,6 @@ grant execute on function public.is_upi_email(text) to authenticated;
 grant execute on function public.is_active_user() to authenticated;
 
 alter table public.lecturer_allowlist enable row level security;
-alter table public.email_verification_codes enable row level security;
 alter table public.users enable row level security;
 alter table public.competitions enable row level security;
 alter table public.lecturers enable row level security;
@@ -438,6 +425,14 @@ alter table public.achievements enable row level security;
 
 insert into storage.buckets (id, name, public)
 values ('profile-photos', 'profile-photos', true)
+on conflict (id) do nothing;
+
+insert into storage.buckets (id, name, public)
+values ('team-posters', 'team-posters', true)
+on conflict (id) do nothing;
+
+insert into storage.buckets (id, name, public)
+values ('student-documents', 'student-documents', false)
 on conflict (id) do nothing;
 
 create policy "users select own profile"
@@ -596,7 +591,6 @@ with check (
 );
 
 revoke all on public.lecturer_allowlist from anon, authenticated;
-revoke all on public.email_verification_codes from anon, authenticated;
 revoke insert, update on public.users from anon, authenticated;
 grant update (
   name,
@@ -631,6 +625,57 @@ using (
 )
 with check (
   bucket_id = 'profile-photos'
+  and public.is_active_user()
+  and (storage.foldername(name))[1] = auth.uid()::text
+);
+
+create policy "team posters select authenticated"
+on storage.objects for select to authenticated
+using (bucket_id = 'team-posters' and public.is_active_user());
+
+create policy "team posters insert authenticated"
+on storage.objects for insert to authenticated
+with check (
+  bucket_id = 'team-posters'
+  and public.is_active_user()
+);
+
+create policy "team posters update authenticated"
+on storage.objects for update to authenticated
+using (
+  bucket_id = 'team-posters'
+  and public.is_active_user()
+)
+with check (
+  bucket_id = 'team-posters'
+  and public.is_active_user()
+);
+
+create policy "student documents select own"
+on storage.objects for select to authenticated
+using (
+  bucket_id = 'student-documents'
+  and public.is_active_user()
+  and (storage.foldername(name))[1] = auth.uid()::text
+);
+
+create policy "student documents insert own"
+on storage.objects for insert to authenticated
+with check (
+  bucket_id = 'student-documents'
+  and public.is_active_user()
+  and (storage.foldername(name))[1] = auth.uid()::text
+);
+
+create policy "student documents update own"
+on storage.objects for update to authenticated
+using (
+  bucket_id = 'student-documents'
+  and public.is_active_user()
+  and (storage.foldername(name))[1] = auth.uid()::text
+)
+with check (
+  bucket_id = 'student-documents'
   and public.is_active_user()
   and (storage.foldername(name))[1] = auth.uid()::text
 );

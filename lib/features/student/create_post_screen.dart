@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../app.dart';
 import '../../core/constants/app_colors.dart';
@@ -27,6 +30,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   bool _isPublishing = false;
 
   final _postTypes = const ['Mencari Tim', 'Mencari Anggota'];
+  final ImagePicker _imagePicker = ImagePicker();
+  Uint8List? _posterBytes;
+  String? _posterFileName;
+  String? _posterContentType;
+  final _notesController = TextEditingController();
 
   @override
   void dispose() {
@@ -34,6 +42,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     _descriptionController.dispose();
     _skillsController.dispose();
     _competitionController.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
@@ -48,14 +57,39 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       description: _descriptionController.text.trim(),
       skills: _skillsController.text.trim(),
       competition: competitionName,
+      posterBytes: _posterBytes,
+      posterFileName: _posterFileName,
+      posterContentType: _posterContentType,
+      notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
     );
     if (!mounted) return;
     setState(() => _isPublishing = false);
     _titleController.clear();
     _descriptionController.clear();
+    _notesController.clear();
+    setState(() {
+      _posterBytes = null;
+      _posterFileName = null;
+      _posterContentType = null;
+    });
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _pickPoster() async {
+    final picked = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1600,
+      imageQuality: 84,
+    );
+    if (picked == null || !mounted) return;
+    final bytes = await picked.readAsBytes();
+    setState(() {
+      _posterBytes = bytes;
+      _posterFileName = picked.name;
+      _posterContentType = picked.mimeType ?? 'image/jpeg';
+    });
   }
 
   @override
@@ -138,6 +172,29 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                           value == null || value.trim().isEmpty
                           ? 'Nama lomba wajib diisi'
                           : null,
+                    ),
+                    const SizedBox(height: 14),
+                    TextFormField(
+                      controller: _notesController,
+                      minLines: 2,
+                      maxLines: 4,
+                      decoration: const InputDecoration(
+                        labelText: 'Catatan untuk perekrutan (opsional)',
+                        hintText: 'Catatan terkait tim atau persyaratan khusus',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: _pickPoster,
+                          icon: const Icon(Icons.image),
+                          label: const Text('Pilih Poster'),
+                        ),
+                        const SizedBox(width: 12),
+                        if (_posterBytes != null)
+                          const Text('Poster siap dipublikasikan'),
+                      ],
                     ),
                     const SizedBox(height: 20),
                     PrimaryButton(

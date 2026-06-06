@@ -8,7 +8,6 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/services/supabase_service.dart';
 import '../../core/widgets/primary_button.dart';
-import 'verify_email_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -59,18 +58,6 @@ class _SplashScreenState extends State<SplashScreen> {
 
     final result = await AppStateScope.of(context).completeAuthenticatedLogin();
     if (!mounted) return;
-    if (result.code == 'EMAIL_NOT_VERIFIED') {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => VerifyEmailScreen(
-            initialEmail: result.email ?? '',
-            emailLocked: result.email?.isNotEmpty ?? false,
-          ),
-        ),
-      );
-      return;
-    }
     if (result.success) {
       Navigator.pushNamedAndRemoveUntil(context, result.route, (_) => false);
       return;

@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -21,6 +24,7 @@ class PortfolioScreen extends StatefulWidget {
 class _PortfolioScreenState extends State<PortfolioScreen> {
   final _imagePicker = ImagePicker();
   bool _isUploadingPhoto = false;
+  bool _isUploadingDocument = false;
 
   @override
   void initState() {
@@ -70,6 +74,54 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
               isUploadingPhoto: _isUploadingPhoto,
               onEditProfile: () => _showEditProfileDialog(context, student),
               onPickPhoto: () => _pickAndUploadPhoto(context),
+            ),
+            const SizedBox(height: 18),
+            SectionHeader(
+              title: 'CV / Portfolio',
+              actionLabel: 'Unggah',
+              onAction: () => _pickAndUploadDocument(context),
+            ),
+            const SizedBox(height: 10),
+            CustomCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (student.portfolioUrl == null || student.portfolioUrl!.isEmpty)
+                    Text(
+                      'Belum ada CV/portfolio. Unggah file PDF untuk memperkuat profilmu.',
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.textGray,
+                      ),
+                    )
+                  else
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'File terunggah:',
+                          style: AppTextStyles.subtitle,
+                        ),
+                        const SizedBox(height: 8),
+                        SelectableText(
+                          student.portfolioUrl!,
+                          style: AppTextStyles.body.copyWith(
+                            color: AppColors.primaryBlue,
+                          ),
+                        ),
+                      ],
+                    ),
+                  const SizedBox(height: 12),
+                  PrimaryButton(
+                    label: _isUploadingDocument
+                        ? 'Mengunggah...'
+                        : 'Unggah PDF CV/Portfolio',
+                    icon: Icons.upload_file_rounded,
+                    onPressed: _isUploadingDocument
+                        ? null
+                        : () => _pickAndUploadDocument(context),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 18),
             SectionHeader(
@@ -171,10 +223,39 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     messenger.showSnackBar(SnackBar(content: Text(message)));
   }
 
+  Future<void> _pickAndUploadDocument(BuildContext context) async {
+    final appState = AppStateScope.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf'],
+      allowMultiple: false,
+    );
+    if (result == null || result.files.isEmpty || !mounted) return;
+
+    final pickedFile = result.files.first;
+    var bytes = pickedFile.bytes;
+    if (bytes == null && pickedFile.path != null) {
+      bytes = await File(pickedFile.path!).readAsBytes();
+    }
+    if (bytes == null || !mounted) return;
+
+    setState(() => _isUploadingDocument = true);
+    final message = await appState.uploadStudentPortfolioDocument(
+      bytes: bytes,
+      fileName: pickedFile.name,
+      contentType: _contentTypeFromName(pickedFile.name),
+    );
+    if (!mounted) return;
+    setState(() => _isUploadingDocument = false);
+    messenger.showSnackBar(SnackBar(content: Text(message)));
+  }
+
   String _contentTypeFromName(String name) {
     final lower = name.toLowerCase();
     if (lower.endsWith('.png')) return 'image/png';
     if (lower.endsWith('.webp')) return 'image/webp';
+    if (lower.endsWith('.pdf')) return 'application/pdf';
     return 'image/jpeg';
   }
 

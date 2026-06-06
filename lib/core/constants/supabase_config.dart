@@ -7,12 +7,15 @@ const String supabaseUrl = 'https://byfuvpemgmczdhnvbjgf.supabase.co';
 const String supabaseAnonKey =
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ5ZnV2cGVtZ21jemRobnZiamdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyMTE2MTYsImV4cCI6MjA5NTc4NzYxNn0.AX89Qyta63uR7OLpDuyFopUWbYk9lg0E4ZctnCymBuY';
 
-// Tambahkan kedua redirect URL di Supabase Dashboard > Authentication
+// Tambahkan semua redirect URL ini di Supabase Dashboard > Authentication
 // > URL Configuration > Redirect URLs, lalu aktifkan Google provider.
 const String mobileGoogleOAuthRedirectUrl =
     'id.upi.connect.upi_connect_plus://login-callback/';
 
 String get googleOAuthRedirectUrl =>
+    kIsWeb ? Uri.base.origin : mobileGoogleOAuthRedirectUrl;
+
+String get emailVerificationRedirectUrl =>
     kIsWeb ? Uri.base.origin : mobileGoogleOAuthRedirectUrl;
 
 bool get isSupabaseConfigured =>
