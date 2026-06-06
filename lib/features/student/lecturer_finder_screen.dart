@@ -1,6 +1,8 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../app.dart';
@@ -183,6 +185,7 @@ class _LecturerCard extends StatelessWidget {
     final titleCtrl = TextEditingController();
     final summaryCtrl = TextEditingController();
     File? pickedPdf;
+    Uint8List? _pdfBytes;
     String? pdfName;
     String? pdfError;
     
@@ -200,11 +203,18 @@ class _LecturerCard extends StatelessWidget {
                 type: FileType.custom,
                 allowedExtensions: ['pdf'],
               );
-              if (result == null || result.files.single.path == null) return;
-              final file = File(result.files.single.path!);
-              final bytes = await file.length();
+              if (result == null) return;
+              
+              final file = result.files.single;
+              final bytes = file.bytes;
+              final size = bytes?.length ?? 0;
+              
+              // Check if file is empty (no bytes on web, no path on mobile)
+              if (kIsWeb && bytes == null) return;
+              if (!kIsWeb && file.path == null) return;
+              
               const maxBytes = 10 * 1024 * 1024; // 10 MB
-              if (bytes > maxBytes) {
+              if (size > maxBytes) {
                 setDialogState(() {
                   pdfError = 'File melebihi batas 10 MB.';
                   pickedPdf = null;
@@ -212,11 +222,25 @@ class _LecturerCard extends StatelessWidget {
                 });
                 return;
               }
-              setDialogState(() {
-                pickedPdf = file;
-                pdfName = result.files.single.name;
-                pdfError = null;
-              });
+              
+              // On web, use bytes; on mobile, use path
+              if (kIsWeb && bytes != null) {
+                // For web, we'll store the bytes directly
+                setDialogState(() {
+                  pickedPdf = null; // Will handle bytes separately
+                  pdfName = file.name;
+                  pdfError = null;
+                  _pdfBytes = bytes;
+                });
+              } else if (file.path != null) {
+                final fileObj = File(file.path!);
+                setDialogState(() {
+                  pickedPdf = fileObj;
+                  pdfName = file.name;
+                  pdfError = null;
+                  _pdfBytes = null;
+                });
+              }
             }
 
             return AlertDialog(
@@ -387,6 +411,12 @@ class _LecturerCard extends StatelessWidget {
       proposalLink = await state.uploadProposalPdf(
         pickedPdf!,
         lecturer.id,
+      ) ?? '';
+    } else if (_pdfBytes != null) {
+      proposalLink = await state.uploadProposalPdfBytes(
+        _pdfBytes!,
+        lecturer.id,
+        pdfName ?? 'proposal.pdf',
       ) ?? '';
     }
 

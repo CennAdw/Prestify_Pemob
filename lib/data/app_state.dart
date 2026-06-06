@@ -651,6 +651,25 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  /// Upload file PDF proposal dari bytes (untuk web).
+  /// Dipanggil dari LecturerFinderScreen sebelum requestLecturerApi.
+  Future<String?> uploadProposalPdfBytes(
+    Uint8List bytes,
+    String lecturerId,
+    String fileName,
+  ) async {
+    try {
+      return await lecturerRepository.uploadProposalPdfBytes(
+        bytes,
+        lecturerId,
+        fileName,
+      );
+    } catch (error, stackTrace) {
+      _logSupabaseError('uploadProposalPdfBytes', error, stackTrace);
+      return null;
+    }
+  }
+
   /// Update profil dosen — dipanggil dari LecturerDashboardScreen edit profil.
   Future<String> updateLecturerProfile({
     required String name,

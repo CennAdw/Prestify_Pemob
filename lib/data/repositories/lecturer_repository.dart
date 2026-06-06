@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -45,6 +46,41 @@ class LecturerRepository {
           .upload(
             path,
             file,
+            fileOptions: const FileOptions(upsert: true),
+          );
+
+      final publicUrl = SupabaseService.client.storage
+          .from('mentorship-proposals')
+          .getPublicUrl(path);
+
+      print('Upload successful. Public URL: $publicUrl');
+      return publicUrl;
+    } catch (error) {
+      print('PDF Upload Error: $error');
+      return null;
+    }
+  }
+
+  /// Upload file proposal PDF dari bytes (untuk web).
+  /// Mengembalikan public URL-nya, atau null jika gagal.
+  Future<String?> uploadProposalPdfBytes(
+    Uint8List bytes,
+    String lecturerId,
+    String fileName,
+  ) async {
+    try {
+      final userId = SupabaseService.client.auth.currentUser?.id ?? 'unknown';
+      final ext = fileName.split('.').last;
+      final path = 'proposals/$lecturerId/${userId}_${DateTime.now().millisecondsSinceEpoch}.$ext';
+
+      print('Uploading PDF bytes to path: $path');
+      print('Bucket: mentorship-proposals');
+
+      await SupabaseService.client.storage
+          .from('mentorship-proposals')
+          .uploadBinary(
+            path,
+            bytes,
             fileOptions: const FileOptions(upsert: true),
           );
 
