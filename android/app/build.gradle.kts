@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "id.upi.connect.upi_connect_plus"
+    namespace = "id.upi.prestify"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
