@@ -623,6 +623,10 @@ create policy "profile photos select authenticated"
 on storage.objects for select to authenticated
 using (bucket_id = 'profile-photos' and public.is_active_user());
 
+create policy "profile photos select public"
+on storage.objects for select to public
+using (bucket_id = 'profile-photos');
+
 create policy "profile photos insert own folder"
 on storage.objects for insert to authenticated
 with check (
