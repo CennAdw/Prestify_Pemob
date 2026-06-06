@@ -28,7 +28,7 @@ class TeamRepository {
   Future<List<TeamModel>> getTeams() async {
     final data = await SupabaseService.client
         .from('teams')
-        .select('*, team_members(student_id, name, role_in_team)')
+        .select('*, team_members(student_id, name, role_in_team, users(avatar_url))')
         .order('created_at', ascending: false);
 
     return asMapList(data).map(TeamModel.fromJson).toList();
@@ -37,7 +37,7 @@ class TeamRepository {
   Future<TeamModel> getTeamDetail(String id) async {
     final data = await SupabaseService.client
         .from('teams')
-        .select('*, team_members(student_id, name, role_in_team)')
+        .select('*, team_members(student_id, name, role_in_team, users(avatar_url))')
         .eq('id', id)
         .limit(1);
 

@@ -14,11 +14,17 @@ class TeamMember {
   final String? avatarUrl;
 
   factory TeamMember.fromJson(Map<String, dynamic> json) {
+    // Handle nested users(avatar_url) structure from Supabase join
+    final usersData = json['users'];
+    final avatarUrl = usersData is Map 
+        ? usersData['avatar_url']?.toString() 
+        : json['avatar_url']?.toString();
+    
     return TeamMember(
       studentId: parseString(json['student_id'] ?? json['studentId'] ?? ''),
       name: parseString(json['name'] ?? json['student_name']),
       role: parseString(json['role'] ?? json['role_in_team']),
-      avatarUrl: json['avatar_url']?.toString(),
+      avatarUrl: avatarUrl,
     );
   }
 }
