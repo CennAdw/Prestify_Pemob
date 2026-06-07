@@ -195,13 +195,16 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   }
 
   Future<void> _downloadPortfolio(String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri == null) return;
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else if (mounted) {
+    try {
+      await launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (e) {
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tidak dapat membuka file.')),
+        SnackBar(content: Text('Gagal membuka file: $e')),
       );
     }
   }

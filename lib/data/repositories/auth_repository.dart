@@ -164,38 +164,41 @@ class AuthRepository {
     return _invoke(functionName, body: body, token: null);
   }
 
-  Future<Map<String, dynamic>> _invoke(
-    String functionName, {
-    required Map<String, dynamic> body,
-    required String? token,
-  }) async {
-    try {
-      final response = await SupabaseService.client.functions.invoke(
-        functionName,
-        body: body,
-        headers: {
-        'Authorization': token != null
-            ? 'Bearer $token'
-            : 'Bearer $supabaseAnonKey',
-      },
-      );
-      final data = response.data;
-      if (data is Map<String, dynamic>) return data;
-      if (data is Map) return Map<String, dynamic>.from(data);
-      return const <String, dynamic>{};
-    } on FunctionException catch (error) {
-      final details = error.details;
-      if (details is Map) {
+    Future<Map<String, dynamic>> _invoke(
+      String functionName, {
+      required Map<String, dynamic> body,
+      required String? token,
+    }) async {
+      try {
+        final headers = <String, String>{};
+
+        if (token != null) {
+          headers['Authorization'] = 'Bearer $token';
+        }
+
+        final response = await SupabaseService.client.functions.invoke(
+          functionName,
+          body: body,
+          headers: headers,
+        );
+
+        final data = response.data;
+        if (data is Map<String, dynamic>) return data;
+        if (data is Map) return Map<String, dynamic>.from(data);
+        return const <String, dynamic>{};
+      } on FunctionException catch (error) {
+        final details = error.details;
+        if (details is Map) {
+          throw AuthRepositoryException(
+            message: details['message']?.toString() ??
+                'Request autentikasi gagal (${error.status}).',
+            code: details['code']?.toString(),
+            email: details['email']?.toString(),
+          );
+        }
         throw AuthRepositoryException(
-          message: details['message']?.toString() ??
-              'Request autentikasi gagal (${error.status}).',
-          code: details['code']?.toString(),
-          email: details['email']?.toString(),
+          message: 'Request autentikasi gagal (${error.status}): $details',
         );
       }
-      throw AuthRepositoryException(
-        message: 'Request autentikasi gagal (${error.status}): $details',
-      );
     }
-  }
 }

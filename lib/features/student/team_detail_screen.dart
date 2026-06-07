@@ -86,24 +86,29 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
     await _loadJoinRequestsIfLeader();
   }
 
-  Future<void> _launchPortfolioUrl(String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri == null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('URL portfolio tidak valid.')),
-      );
-      return;
+    Future<void> _launchPortfolioUrl(String url) async {
+      final uri = Uri.tryParse(url);
+
+      if (uri == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('URL portfolio tidak valid.')),
+        );
+        return;
+      }
+
+      try {
+        await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Tidak dapat membuka URL portfolio: $e')),
+        );
+      }
     }
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tidak dapat membuka URL portfolio.')),
-      );
-    }
-  }
 
   Future<void> _showJoinDialog(
     BuildContext context,
