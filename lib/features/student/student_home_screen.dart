@@ -98,7 +98,7 @@ class StudentHomeScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 24),
                       Text(
-                        'Halo, ${student.name.split(' ').first} 👋',
+                        'Halo, ${student.name.split(' ').take(2).join(' ')}',
                         style: AppTextStyles.headline.copyWith(
                           color: AppColors.white,
                           fontWeight: FontWeight.w800,
@@ -125,7 +125,7 @@ class StudentHomeScreen extends StatelessWidget {
                           ),
                           const SizedBox(width: 8),
                           _StatPill(
-                            label: '${recommendedTeams.length} Tim tersedia',
+                            label: '${recommendedTeams.length} Rekomendasi Tim',
                             icon: Icons.groups_rounded,
                           ),
                         ],
@@ -291,11 +291,6 @@ class StudentHomeScreen extends StatelessWidget {
                                   ),
                                 ],
                               ),
-                            ),
-                            const Icon(
-                              Icons.chevron_right_rounded,
-                              color: AppColors.textMuted,
-                              size: 20,
                             ),
                           ],
                         ),

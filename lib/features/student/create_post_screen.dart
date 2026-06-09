@@ -26,6 +26,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   final _skillsController = TextEditingController(text: 'Flutter, UI/UX, Pitching');
   final _competitionController = TextEditingController(text: 'GEMASTIK XVII');
   final _notesController = TextEditingController();
+  final _maxMembersController = TextEditingController(text: '5'); // Controller baru untuk input angka
 
   // Mencari Tim fields
   final _cariTimTitleController = TextEditingController();
@@ -35,7 +36,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   final _cariTimNotesController = TextEditingController();
 
   String _postType = 'Mencari Anggota';
-  int _maxMembers = 5;
   bool _isPublishing = false;
 
   final _postTypes = const ['Mencari Anggota', 'Mencari Tim'];
@@ -51,6 +51,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     _skillsController.dispose();
     _competitionController.dispose();
     _notesController.dispose();
+    _maxMembersController.dispose();
     _cariTimTitleController.dispose();
     _cariTimDescController.dispose();
     _cariTimSkillsController.dispose();
@@ -64,7 +65,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     final state = AppStateScope.of(context);
     setState(() => _isPublishing = true);
 
+    final maxMembers = int.tryParse(_maxMembersController.text) ?? 5;
     String message;
+    
     if (_postType == 'Mencari Anggota') {
       message = await state.publishRecruitmentPost(
         type: _postType,
@@ -72,7 +75,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         description: _descriptionController.text.trim(),
         skills: _skillsController.text.trim(),
         competition: _competitionController.text.trim(),
-        maxMembers: _maxMembers,
+        maxMembers: maxMembers,
         posterBytes: _posterBytes,
         posterFileName: _posterFileName,
         posterContentType: _posterContentType,
@@ -85,6 +88,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           _posterBytes = null;
           _posterFileName = null;
           _posterContentType = null;
+          _maxMembersController.text = '5';
         });
         _titleController.clear();
         _descriptionController.clear();
@@ -127,27 +131,45 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     });
   }
 
+    void _updateMembersCount(int delta) {
+        // Amankan pengambilan teks agar tidak memicu error 'undefined' di web
+        final String currentText = _maxMembersController.text;
+        final int current = int.tryParse(currentText) ?? 5;
+        
+        final int updated = current + delta;
+        
+        // Batasi minimal 2 dan maksimal 20 orang
+        if (updated >= 2 && updated <= 20) {
+          setState(() {
+            _maxMembersController.text = updated.toString();
+          });
+        }
+      }
+
   InputDecoration _inputDecoration(String label, {String? hint, Widget? prefix}) {
     return InputDecoration(
       labelText: label,
+      labelStyle: const TextStyle(color: Colors.black54, fontSize: 14),
       hintText: hint,
+      hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
       prefixIcon: prefix,
       filled: true,
-      fillColor: AppColors.backgroundSoftGray,
+      fillColor: Colors.grey.shade50,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.borderLight),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: Colors.grey.shade200),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.borderLight),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: Colors.grey.shade200),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: AppColors.primaryBlue, width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: AppColors.alertCoral),
       ),
     );
@@ -159,158 +181,197 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     final recentTeams = state.teams.take(3).toList();
 
     return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Buat Postingan', style: AppTextStyles.headline),
-            const SizedBox(height: 4),
-            Text(
-              'Publikasikan kebutuhan mencari tim atau anggota.',
-              style: AppTextStyles.body.copyWith(color: AppColors.textGray),
-            ),
-            const SizedBox(height: 24),
-
-            // Post type selector
-            Row(
-              children: _postTypes.map((type) {
-                final selected = _postType == type;
-                return Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      right: type == _postTypes.first ? 8 : 0,
-                    ),
-                    child: GestureDetector(
-                      onTap: () => setState(() => _postType = type),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          color: selected
-                              ? AppColors.primaryBlue
-                              : AppColors.backgroundCard,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: selected
-                                ? AppColors.primaryBlue
-                                : AppColors.borderLight,
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            Icon(
-                              type == 'Mencari Tim'
-                                  ? Icons.person_search_rounded
-                                  : Icons.group_add_rounded,
-                              color: selected ? AppColors.white : AppColors.textGray,
-                              size: 22,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              type,
-                              style: AppTextStyles.small.copyWith(
-                                color: selected ? AppColors.white : AppColors.textBody,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-
-            const SizedBox(height: 20),
-
-            // Form
-            Form(
-              key: _formKey,
-              child: _postType == 'Mencari Anggota'
-                  ? _buildCariAnggotaForm()
-                  : _buildCariTimForm(),
-            ),
-
-            const SizedBox(height: 28),
-            const SectionHeader(title: 'Tim Recruitment Terbaru'),
-            const SizedBox(height: 12),
-
-            if (state.isTeamsLoading) ...[
-              const LinearProgressIndicator(
-                minHeight: 3,
-                color: AppColors.primaryBlue,
-                backgroundColor: AppColors.borderLight,
-              ),
-              const SizedBox(height: 12),
-            ],
-            if (recentTeams.isEmpty)
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppColors.backgroundMuted,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.borderLight),
-                ),
-                child: Text(
-                  'Belum ada tim terbaru.',
-                  style: AppTextStyles.body.copyWith(color: AppColors.textMuted),
-                ),
-              )
-            else
-              ...recentTeams.map(
-                (team) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: CustomCard(
-                    padding: const EdgeInsets.all(14),
-                    child: Row(
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC), // Background abu-abu tipis premium ala iOS/Web modern
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── HEADER UTAMA ───────────────────────────────────────────────
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceElevated,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(
-                            Icons.groups_rounded,
-                            color: AppColors.primaryBlue,
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(team.name, style: AppTextStyles.subtitle),
-                              const SizedBox(height: 2),
-                              Text(team.competitionName, style: AppTextStyles.muted),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppColors.successGreenLight,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            team.status,
-                            style: AppTextStyles.caption.copyWith(
-                              color: AppColors.successGreen,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
+                        Text('Buat Postingan', style: AppTextStyles.headline.copyWith(fontSize: 26, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Publikasikan kebutuhan mencari tim atau anggota kompetisi.',
+                          style: AppTextStyles.body.copyWith(color: AppColors.textGray, fontSize: 14),
                         ),
                       ],
                     ),
                   ),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryBlue.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Icon(Icons.maps_ugc_rounded, color: AppColors.primaryBlue, size: 24),
+                  )
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // ── TAB SELECTOR (MENCARI ANGGOTA / TIM) ───────────────────────
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: _postTypes.map((type) {
+                    final selected = _postType == type;
+                    return Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _postType = type),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 250),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: selected ? Colors.white : Colors.transparent,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: selected
+                                ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))]
+                                : [],
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                type == 'Mencari Tim' ? Icons.person_search_rounded : Icons.group_add_rounded,
+                                color: selected ? AppColors.primaryBlue : AppColors.textGray,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                type,
+                                style: TextStyle(
+                                  color: selected ? Colors.black87 : AppColors.textGray,
+                                  fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+                                  fontSize: 13.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
                 ),
               ),
-          ],
+              const SizedBox(height: 20),
+
+              // ── CONTAINER FORM UTAMA (DIBUNGKUS CARD ELEVATED) ─────────────
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 15,
+                      offset: const Offset(0, 8),
+                    )
+                  ],
+                  border: Border.all(color: Colors.grey.shade100),
+                ),
+                child: Form(
+                  key: _formKey,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: _postType == 'Mencari Anggota' ? _buildCariAnggotaForm() : _buildCariTimForm(),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              // ── RECRUITMENT TERBARU SECTION ────────────────────────────────
+              const SectionHeader(title: 'Tim Recruitment Terbaru'),
+              const SizedBox(height: 12),
+
+              if (state.isTeamsLoading) ...[
+                const ClipRRect(
+                  borderRadius: BorderRadius.all(Radius.circular(10)),
+                  child: LinearProgressIndicator(
+                    minHeight: 4,
+                    color: AppColors.primaryBlue,
+                    backgroundColor: AppColors.borderLight,
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+              
+              if (recentTeams.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'Belum ada tim terbaru.',
+                      style: AppTextStyles.body.copyWith(color: AppColors.textGray, fontStyle: FontStyle.italic),
+                    ),
+                  ),
+                )
+              else
+                ...recentTeams.map(
+                  (team) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: CustomCard(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryBlue.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.groups_rounded, color: AppColors.primaryBlue, size: 22),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(team.name, style: AppTextStyles.subtitle.copyWith(fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 3),
+                                Text(team.competitionName, style: AppTextStyles.small.copyWith(color: AppColors.textGray)),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AppColors.successGreenLight,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              team.status,
+                              style: AppTextStyles.caption.copyWith(
+                                color: AppColors.successGreen,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -319,156 +380,157 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   // ── Form: Mencari Anggota ─────────────────────────────────────────────────
   Widget _buildCariAnggotaForm() {
     return Column(
+      key: const ValueKey('CariAnggotaForm'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         TextFormField(
           controller: _titleController,
           decoration: _inputDecoration(
             'Nama tim',
-            hint: 'Contoh: Tim Prestify',
-            prefix: const Icon(Icons.title_rounded, color: AppColors.primaryBlue),
+            hint: 'Contoh: Tim Prestify Dev',
+            prefix: const Icon(Icons.badge_outlined, color: AppColors.primaryBlue, size: 20),
           ),
-          validator: (v) =>
-              v == null || v.trim().isEmpty ? 'Nama tim wajib diisi' : null,
+          validator: (v) => v == null || v.trim().isEmpty ? 'Nama tim wajib diisi' : null,
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         TextFormField(
           controller: _descriptionController,
-          minLines: 4,
-          maxLines: 6,
+          minLines: 3,
+          maxLines: 5,
           decoration: _inputDecoration(
             'Deskripsi tim & kebutuhan',
-            hint: 'Ceritakan tentang tim dan posisi yang dibutuhkan.',
+            hint: 'Ceritakan tentang visi tim dan kriteria spesifik anggota yang dicari.',
           ),
-          validator: (v) =>
-              v == null || v.trim().isEmpty ? 'Deskripsi wajib diisi' : null,
+          validator: (v) => v == null || v.trim().isEmpty ? 'Deskripsi wajib diisi' : null,
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         TextFormField(
           controller: _skillsController,
           decoration: _inputDecoration(
             'Skill yang dibutuhkan',
-            hint: 'Flutter, UI/UX, Pitching',
-            prefix: const Icon(Icons.auto_awesome_outlined, color: AppColors.primaryBlue),
+            hint: 'Pisahkan dengan koma (contoh: Flutter, UI/UX)',
+            prefix: const Icon(Icons.psychology_outlined, color: AppColors.primaryBlue, size: 20),
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 18),
 
-        // Slider max anggota
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        // 🔢 BAGIAN INPUT JUMLAH ANGGOTA BARU (+ / - DAN TEXT FIELD)
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.group_rounded, color: AppColors.primaryBlue, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  'Maksimal Anggota',
-                  style: AppTextStyles.subtitle.copyWith(fontSize: 14),
-                ),
-                const Spacer(),
-                Text(
-                  '$_maxMembers orang',
-                  style: AppTextStyles.subtitle.copyWith(color: AppColors.primaryBlue),
-                ),
+                const Text('Maksimal Anggota', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                const SizedBox(height: 2),
+                Text('Rentang batasan: 2 - 20 orang', style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
               ],
             ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Text('2', style: AppTextStyles.muted),
-                Expanded(
-                  child: Slider(
-                    value: _maxMembers.toDouble(),
-                    min: 2,
-                    max: 10,
-                    divisions: 8,
-                    activeColor: AppColors.primaryBlue,
-                    inactiveColor: AppColors.lightBlue,
-                    onChanged: (v) => setState(() => _maxMembers = v.round()),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min, // Memastikan ukuran kontainer pas
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.remove, size: 18, color: Colors.black87),
+                    onPressed: () => _updateMembersCount(-1),
                   ),
-                ),
-                const Text('10', style: AppTextStyles.muted),
-              ],
+                  SizedBox(
+                    width: 50,
+                    child: TextField( // Diubah dari TextFormField ke TextField biasa agar lebih ringan di Web
+                      controller: _maxMembersController,
+                      keyboardType: TextInputType.number,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.primaryBlue),
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
+                        isDense: true,
+                      ),
+                      onChanged: (v) {
+                        // Jaga-jaga jika user mengetik manual angka di luar batas
+                        final val = int.tryParse(v);
+                        if (val != null && (val < 2 || val > 20)) {
+                          // Kembalikan ke angka aman jika ngaco
+                          _maxMembersController.text = '5'; 
+                        }
+                      },
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.add, size: 18, color: Colors.black87),
+                    onPressed: () => _updateMembersCount(1),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
-
-        const SizedBox(height: 14),
+        const SizedBox(height: 18),
+        
         TextFormField(
           controller: _competitionController,
           decoration: _inputDecoration(
-            'Nama lomba',
-            hint: 'Contoh: GEMASTIK XVII',
-            prefix: const Icon(Icons.emoji_events_outlined, color: AppColors.primaryBlue),
+            'Nama kompetisi/lomba',
+            hint: 'Contoh: GEMASTIK XVII 2026',
+            prefix: const Icon(Icons.emoji_events_outlined, color: AppColors.primaryBlue, size: 20),
           ),
-          validator: (v) =>
-              v == null || v.trim().isEmpty ? 'Nama lomba wajib diisi' : null,
+          validator: (v) => v == null || v.trim().isEmpty ? 'Nama lomba wajib diisi' : null,
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         TextFormField(
           controller: _notesController,
           minLines: 2,
-          maxLines: 4,
+          maxLines: 3,
           decoration: _inputDecoration(
-            'Catatan untuk perekrutan (opsional)',
-            hint: 'Persyaratan khusus, kontak, dll.',
+            'Catatan tambahan (opsional)',
+            hint: 'Bisa berupa benefit, id line/WA, link grup dsb.',
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
 
-        // Poster picker
+        // 🖼️ POSTER PICKER RE-DESIGNED
         GestureDetector(
           onTap: _pickPoster,
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
             decoration: BoxDecoration(
-              color: _posterBytes != null
-                  ? AppColors.successGreenLight
-                  : AppColors.backgroundMuted,
-              borderRadius: BorderRadius.circular(12),
+              color: _posterBytes != null ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: _posterBytes != null
-                    ? AppColors.successGreen.withAlpha(80)
-                    : AppColors.borderLight,
+                color: _posterBytes != null ? const Color(0xFFBBF7D0) : Colors.grey.shade200,
+                width: 1.5,
               ),
             ),
             child: Row(
               children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: _posterBytes != null
-                        ? AppColors.successGreen.withAlpha(30)
-                        : AppColors.surfaceElevated,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
+                CircleAvatar(
+                  backgroundColor: _posterBytes != null ? const Color(0xFFDCFCE7) : Colors.grey.shade200,
+                  radius: 20,
                   child: Icon(
-                    _posterBytes != null
-                        ? Icons.check_circle_outline_rounded
-                        : Icons.image_outlined,
-                    color: _posterBytes != null
-                        ? AppColors.successGreen
-                        : AppColors.primaryBlue,
-                    size: 22,
+                    _posterBytes != null ? Icons.done_all_rounded : Icons.cloud_upload_outlined,
+                    color: _posterBytes != null ? const Color(0xFF16A34A) : AppColors.primaryBlue,
+                    size: 20,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _posterBytes != null ? 'Poster siap' : 'Unggah Poster Lomba',
-                        style: AppTextStyles.subtitle.copyWith(fontSize: 14),
+                        _posterBytes != null ? 'Poster berhasil diunggah' : 'Tambahkan Brosur / Poster',
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5, color: _posterBytes != null ? const Color(0xFF15803D) : Colors.black87),
                       ),
+                      const SizedBox(height: 2),
                       Text(
-                        _posterBytes != null
-                            ? _posterFileName ?? ''
-                            : 'Tap untuk pilih gambar (opsional)',
-                        style: AppTextStyles.small.copyWith(color: AppColors.textGray),
+                        _posterBytes != null ? _posterFileName ?? '' : 'Format JPG/PNG (Opsional)',
+                        style: TextStyle(color: Colors.grey.shade500, fontSize: 11.5),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
@@ -476,8 +538,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 ),
                 if (_posterBytes != null)
                   IconButton(
-                    icon: const Icon(Icons.close_rounded,
-                        size: 18, color: AppColors.textGray),
+                    icon: const Icon(Icons.delete_outline_rounded, size: 20, color: Colors.redAccent),
                     onPressed: () => setState(() {
                       _posterBytes = null;
                       _posterFileName = null;
@@ -489,11 +550,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           ),
         ),
 
-        const SizedBox(height: 20),
-        PrimaryButton(
-          label: _isPublishing ? 'Mengirim...' : 'Publikasikan',
-          icon: Icons.publish_rounded,
-          onPressed: _isPublishing ? null : _publish,
+        const SizedBox(height: 24),
+        SizedBox(
+          width: double.infinity,
+          child: PrimaryButton(
+            label: _isPublishing ? 'Memproses...' : 'Publikasikan Lomba',
+            icon: Icons.check_circle_rounded,
+            onPressed: _isPublishing ? null : _publish,
+          ),
         ),
       ],
     );
@@ -502,65 +566,66 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   // ── Form: Mencari Tim ─────────────────────────────────────────────────────
   Widget _buildCariTimForm() {
     return Column(
+      key: const ValueKey('CariTimForm'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         TextFormField(
           controller: _cariTimTitleController,
           decoration: _inputDecoration(
-            'Judul postingan',
-            hint: 'Contoh: Mencari tim untuk GEMASTIK XVII',
-            prefix: const Icon(Icons.title_rounded, color: AppColors.primaryBlue),
+            'Judul postingan iklan',
+            hint: 'Contoh: UI/UX Designer siap gabung tim Gemastik',
+            prefix: const Icon(Icons.rocket_launch_outlined, color: AppColors.primaryBlue, size: 20),
           ),
-          validator: (v) =>
-              v == null || v.trim().isEmpty ? 'Judul wajib diisi' : null,
+          validator: (v) => v == null || v.trim().isEmpty ? 'Judul wajib diisi' : null,
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         TextFormField(
           controller: _cariTimDescController,
-          minLines: 4,
-          maxLines: 6,
+          minLines: 3,
+          maxLines: 5,
           decoration: _inputDecoration(
-            'Perkenalan diri & motivasi',
-            hint: 'Ceritakan tentang dirimu, pengalamanmu, dan kenapa kamu cocok bergabung.',
+            'Perkenalan diri & keunggulanmu',
+            hint: 'Tulis keahlianmu, riwayat portofolio singkat, atau antusiasme lombamu.',
           ),
-          validator: (v) =>
-              v == null || v.trim().isEmpty ? 'Deskripsi wajib diisi' : null,
+          validator: (v) => v == null || v.trim().isEmpty ? 'Deskripsi wajib diisi' : null,
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         TextFormField(
           controller: _cariTimSkillsController,
           decoration: _inputDecoration(
-            'Skill yang kamu miliki',
-            hint: 'Flutter, UI/UX, Machine Learning',
-            prefix: const Icon(Icons.auto_awesome_outlined, color: AppColors.primaryBlue),
+            'Keahlian / Tech Stack utama',
+            hint: 'Contoh: Figma, Flutter, Golang',
+            prefix: const Icon(Icons.workspace_premium_outlined, color: AppColors.primaryBlue, size: 20),
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         TextFormField(
           controller: _cariTimCompetitionController,
           decoration: _inputDecoration(
-            'Lomba yang diminati',
-            hint: 'Contoh: GEMASTIK XVII, PKM, dll.',
-            prefix: const Icon(Icons.emoji_events_outlined, color: AppColors.primaryBlue),
+            'Lomba target utama',
+            hint: 'Contoh: GEMASTIK, PKM-KC, Hackathon',
+            prefix: const Icon(Icons.flag_outlined, color: AppColors.primaryBlue, size: 20),
           ),
-          validator: (v) =>
-              v == null || v.trim().isEmpty ? 'Nama lomba wajib diisi' : null,
+          validator: (v) => v == null || v.trim().isEmpty ? 'Nama lomba wajib diisi' : null,
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         TextFormField(
           controller: _cariTimNotesController,
           minLines: 2,
-          maxLines: 4,
+          maxLines: 3,
           decoration: _inputDecoration(
-            'Catatan tambahan (opsional)',
-            hint: 'Ketersediaan waktu, preferensi tim, kontak, dll.',
+            'Ketersediaan & kontak (opsional)',
+            hint: 'Contoh: Fleksibel setelah jam kuliah, Kontak WA: 0812...',
           ),
         ),
-        const SizedBox(height: 20),
-        PrimaryButton(
-          label: _isPublishing ? 'Mengirim...' : 'Publikasikan',
-          icon: Icons.publish_rounded,
-          onPressed: _isPublishing ? null : _publish,
+        const SizedBox(height: 24),
+        SizedBox(
+          width: double.infinity,
+          child: PrimaryButton(
+            label: _isPublishing ? 'Memproses...' : 'Sebarkan Profil Saya',
+            icon: Icons.send_rounded,
+            onPressed: _isPublishing ? null : _publish,
+          ),
         ),
       ],
     );

@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -36,37 +35,47 @@ class _LecturerFinderScreenState extends State<LecturerFinderScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Dosen Pembimbing')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          if (state.isLecturersLoading) ...[
-            const LinearProgressIndicator(
-              minHeight: 4,
-              color: AppColors.primaryBlue,
-              backgroundColor: AppColors.lightBlue,
-            ),
-            const SizedBox(height: 12),
-          ],
-          if (state.lecturerError != null) ...[
-            CustomCard(
-              color: AppColors.lightBlue,
-              padding: const EdgeInsets.all(12),
-              child: Text(
-                state.lecturerError!,
-                style: AppTextStyles.small.copyWith(
-                  color: AppColors.primaryBlue,
+      body: RefreshIndicator(
+        color: AppColors.primaryBlue,
+        backgroundColor: Colors.white,
+        onRefresh: () async {
+          // Mengambil ulang data dosen saat layar ditarik ke bawah
+          await state.loadLecturers();
+        },
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          // Memastikan list tetap bisa ditarik meski datanya sedikit/kosong
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            if (state.isLecturersLoading) ...[
+              const LinearProgressIndicator(
+                minHeight: 4,
+                color: AppColors.primaryBlue,
+                backgroundColor: AppColors.lightBlue,
+              ),
+              const SizedBox(height: 12),
+            ],
+            if (state.lecturerError != null) ...[
+              CustomCard(
+                color: AppColors.lightBlue,
+                padding: const EdgeInsets.all(12),
+                child: Text(
+                  state.lecturerError!,
+                  style: AppTextStyles.small.copyWith(
+                    color: AppColors.primaryBlue,
+                  ),
                 ),
               ),
+              const SizedBox(height: 12),
+            ],
+            ...state.lecturers.map(
+              (lecturer) => Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: _LecturerCard(lecturer: lecturer),
+              ),
             ),
-            const SizedBox(height: 12),
           ],
-          ...state.lecturers.map(
-            (lecturer) => Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: _LecturerCard(lecturer: lecturer),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -185,16 +194,21 @@ class _LecturerCard extends StatelessWidget {
     final titleCtrl = TextEditingController();
     final summaryCtrl = TextEditingController();
     File? pickedPdf;
-    Uint8List? _pdfBytes;
+    Uint8List? pdfBytes;
     String? pdfName;
     String? pdfError;
     
+    // Variabel penampung data teks sebelum dialog dihancurkan/dismissed
+    String finalTitle = '';
+    String finalSummary = '';
+
     // Get teams where student is leader
     final ownedTeams = List.from(state.teams.where((t) => t.leaderId == state.student.id));
     String? selectedTeamId = ownedTeams.isNotEmpty ? ownedTeams.first.id : null;
 
     final result = await showDialog<bool>(
       context: context,
+      barrierDismissible: false, // Mencegah dialog tertutup tidak sengaja tanpa menekan batal
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
@@ -207,9 +221,8 @@ class _LecturerCard extends StatelessWidget {
               
               final file = result.files.single;
               final bytes = file.bytes;
-              final size = bytes?.length ?? 0;
+              final size = bytes?.length ?? file.size; // Fallback ke file.size jika bytes null
               
-              // Check if file is empty (no bytes on web, no path on mobile)
               if (kIsWeb && bytes == null) return;
               if (!kIsWeb && file.path == null) return;
               
@@ -219,18 +232,17 @@ class _LecturerCard extends StatelessWidget {
                   pdfError = 'File melebihi batas 10 MB.';
                   pickedPdf = null;
                   pdfName = null;
+                  pdfBytes = null;
                 });
                 return;
               }
               
-              // On web, use bytes; on mobile, use path
               if (kIsWeb && bytes != null) {
-                // For web, we'll store the bytes directly
                 setDialogState(() {
-                  pickedPdf = null; // Will handle bytes separately
+                  pickedPdf = null;
                   pdfName = file.name;
                   pdfError = null;
-                  _pdfBytes = bytes;
+                  pdfBytes = bytes;
                 });
               } else if (file.path != null) {
                 final fileObj = File(file.path!);
@@ -238,7 +250,7 @@ class _LecturerCard extends StatelessWidget {
                   pickedPdf = fileObj;
                   pdfName = file.name;
                   pdfError = null;
-                  _pdfBytes = null;
+                  pdfBytes = null;
                 });
               }
             }
@@ -253,20 +265,20 @@ class _LecturerCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Team Selection (if student is leader in multiple teams)
+                    // Team Selection
                     if (ownedTeams.length > 1) ...[
                       const Text('Pilih Tim', style: AppTextStyles.subtitle),
                       const SizedBox(height: 8),
                       ...ownedTeams.map((team) => RadioListTile<String>(
-                        title: Text('${team.name} (${team.competitionName})'),
-                        value: team.id,
-                        groupValue: selectedTeamId,
-                        onChanged: (value) {
-                          setDialogState(() {
-                            selectedTeamId = value;
-                          });
-                        },
-                      )),
+                            title: Text('${team.name} (${team.competitionName})'),
+                            value: team.id,
+                            groupValue: selectedTeamId,
+                            onChanged: (value) {
+                              setDialogState(() {
+                                selectedTeamId = value;
+                              });
+                            },
+                          )),
                       const SizedBox(height: 16),
                     ],
                     // Judul Proposal
@@ -314,10 +326,10 @@ class _LecturerCard extends StatelessWidget {
                         child: Row(
                           children: [
                             Icon(
-                              pickedPdf != null
+                              (pickedPdf != null || pdfBytes != null)
                                   ? Icons.picture_as_pdf_rounded
                                   : Icons.upload_file_rounded,
-                              color: pickedPdf != null
+                              color: (pickedPdf != null || pdfBytes != null)
                                   ? AppColors.alertCoral
                                   : AppColors.primaryBlue,
                               size: 22,
@@ -327,17 +339,18 @@ class _LecturerCard extends StatelessWidget {
                               child: Text(
                                 pdfName ?? 'Pilih file PDF (maks 10 MB)',
                                 style: AppTextStyles.body.copyWith(
-                                  color: pickedPdf != null
+                                  color: (pickedPdf != null || pdfBytes != null)
                                       ? AppColors.textBody
                                       : AppColors.textHint,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            if (pickedPdf != null)
+                            if (pickedPdf != null || pdfBytes != null)
                               GestureDetector(
                                 onTap: () => setDialogState(() {
                                   pickedPdf = null;
+                                  pdfBytes = null;
                                   pdfName = null;
                                   pdfError = null;
                                 }),
@@ -369,10 +382,12 @@ class _LecturerCard extends StatelessWidget {
                   child: const Text('Batal'),
                 ),
                 TextButton(
-                  onPressed: () async {
-                    final title = titleCtrl.text.trim();
-                    final summary = summaryCtrl.text.trim();
-                    if (title.isEmpty || summary.isEmpty) {
+                  onPressed: () {
+                    // Amankan data ke variabel lokal sebelum memicu pop/dispose
+                    finalTitle = titleCtrl.text.trim();
+                    finalSummary = summaryCtrl.text.trim();
+                    
+                    if (finalTitle.isEmpty || finalSummary.isEmpty) {
                       ScaffoldMessenger.of(ctx).showSnackBar(
                         const SnackBar(
                           content: Text('Judul dan ringkasan wajib diisi.'),
@@ -380,7 +395,6 @@ class _LecturerCard extends StatelessWidget {
                       );
                       return;
                     }
-                    // Validate team selection if multiple teams exist
                     if (ownedTeams.length > 1 && selectedTeamId == null) {
                       ScaffoldMessenger.of(ctx).showSnackBar(
                         const SnackBar(
@@ -400,34 +414,38 @@ class _LecturerCard extends StatelessWidget {
       },
     );
 
+    // Membuang controller dengan aman dari memori karena dialog sudah ditutup
     titleCtrl.dispose();
     summaryCtrl.dispose();
 
     if (result != true) return;
 
-    // Upload PDF dulu jika ada, dapat URL-nya
+    // Proses unggah file dokumen PDF ke server jika ada
     String proposalLink = '';
     if (pickedPdf != null) {
       proposalLink = await state.uploadProposalPdf(
         pickedPdf!,
         lecturer.id,
       ) ?? '';
-    } else if (_pdfBytes != null) {
+    } else if (pdfBytes != null) {
       proposalLink = await state.uploadProposalPdfBytes(
-        _pdfBytes!,
+        pdfBytes!,
         lecturer.id,
         pdfName ?? 'proposal.pdf',
       ) ?? '';
     }
 
+    // Mengirimkan data final yang telah diamankan ke API
     final message = await state.requestLecturerApi(
       lecturer.id,
-      proposalTitle: titleCtrl.text.trim(),
-      proposalSummary: summaryCtrl.text.trim(),
+      proposalTitle: finalTitle,
+      proposalSummary: finalSummary,
       proposalLink: proposalLink,
       teamId: selectedTeamId,
     );
+
     if (!context.mounted) return;
+    
     showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(

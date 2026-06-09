@@ -166,7 +166,7 @@ class _SplashScreenState extends State<SplashScreen>
                             ],
                           ),
                           child: Image.asset(
-                            'assets/images/prestify_logo.png',
+                            'images/prestify_blue.png',
                             fit: BoxFit.contain,
                           ),
                         ),

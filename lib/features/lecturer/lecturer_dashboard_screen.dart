@@ -8,6 +8,8 @@ import '../../core/widgets/custom_card.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/section_header.dart';
 import '../../core/widgets/skill_chip.dart';
+// 1. IMPORT WIDGET CUSTOM KAMU DI SINI
+import '../../core/widgets/refresh_indicator.dart'; 
 import '../../data/app_state.dart';
 
 class LecturerDashboardScreen extends StatefulWidget {
@@ -37,232 +39,241 @@ class _LecturerDashboardScreenState extends State<LecturerDashboardScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.backgroundSoftGray,
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Header ──────────────────────────────────────────────────────
-            Container(
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [AppColors.gradientStart, AppColors.gradientMid],
-                ),
-                borderRadius: BorderRadius.vertical(
-                  bottom: Radius.circular(28),
-                ),
-              ),
-              child: SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              'Dashboard Dosen',
-                              style: AppTextStyles.small.copyWith(
-                                color: AppColors.white.withAlpha(200),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          // Edit profil
-                          IconButton(
-                            tooltip: 'Edit Profil',
-                            onPressed: () =>
-                                _showEditProfileDialog(context, state),
-                            icon: const Icon(
-                              Icons.edit_rounded,
-                              color: AppColors.white,
-                              size: 22,
-                            ),
-                          ),
-                          // Logout
-                          IconButton(
-                            tooltip: 'Keluar',
-                            onPressed: () async {
-                              await state.signOut();
-                              if (!context.mounted) return;
-                              Navigator.pushNamedAndRemoveUntil(
-                                context,
-                                '/login',
-                                (_) => false,
-                              );
-                            },
-                            icon: const Icon(
-                              Icons.logout_rounded,
-                              color: AppColors.white,
-                              size: 22,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      Text(
-                        'Halo, Dosen Pembimbing 👋',
-                        style: AppTextStyles.headline.copyWith(
-                          color: AppColors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        state.lecturerUser.name,
-                        style: AppTextStyles.body.copyWith(
-                          color: AppColors.white.withAlpha(200),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          _StatChip(
-                            icon: Icons.hourglass_top_rounded,
-                            label: '$waitingCount Menunggu',
-                            color: AppColors.accentYellow,
-                          ),
-                          const SizedBox(width: 10),
-                          _StatChip(
-                            icon: Icons.check_circle_rounded,
-                            label: '$acceptedCount Diterima',
-                            color: AppColors.successGreen,
-                          ),
-                        ],
-                      ),
-                    ],
+      // 2. BUNGKUS SINGLECHILDSCROLLVIEW DENGAN WIDGET CUSTOM
+      body: CommonRefreshIndicator(
+        onRefresh: () async {
+          // Fungsi untuk mengambil data request bimbingan terbaru dari API
+          await state.loadMentoringRequests();
+        },
+        child: SingleChildScrollView(
+          // 3. TAMBAHKAN PHYSICS BIAR BISA DI-PULL DOWN WALAU DATA KOSONG
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Header ──────────────────────────────────────────────────────
+              Container(
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [AppColors.gradientStart, AppColors.gradientMid],
+                  ),
+                  borderRadius: BorderRadius.vertical(
+                    bottom: Radius.circular(28),
                   ),
                 ),
-              ),
-            ),
-
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ── Status card ────────────────────────────────────────────
-                  CustomCard(
-                    elevation: 1,
+                child: SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
-                            Container(
-                              width: 42,
-                              height: 42,
-                              decoration: BoxDecoration(
-                                color: AppColors.surfaceElevated,
-                                borderRadius: BorderRadius.circular(12),
+                            Expanded(
+                              child: Text(
+                                'Dashboard Dosen',
+                                style: AppTextStyles.small.copyWith(
+                                  color: AppColors.white.withAlpha(200),
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                              child: const Icon(
-                                Icons.supervisor_account_rounded,
-                                color: AppColors.primaryBlue,
+                            ),
+                            // Edit profil
+                            IconButton(
+                              tooltip: 'Edit Profil',
+                              onPressed: () =>
+                                  _showEditProfileDialog(context, state),
+                              icon: const Icon(
+                                Icons.edit_rounded,
+                                color: AppColors.white,
                                 size: 22,
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Status Bimbingan',
-                                    style: AppTextStyles.subtitle,
-                                  ),
-                                  Text(
-                                    '$waitingCount request menunggu keputusan',
-                                    style: AppTextStyles.small.copyWith(
-                                      color: AppColors.textGray,
-                                    ),
-                                  ),
-                                ],
+                            // Logout
+                            IconButton(
+                              tooltip: 'Keluar',
+                              onPressed: () async {
+                                await state.signOut();
+                                if (!context.mounted) return;
+                                Navigator.pushNamedAndRemoveUntil(
+                                  context,
+                                  '/login',
+                                  (_) => false,
+                                );
+                              },
+                              icon: const Icon(
+                                Icons.logout_rounded,
+                                color: AppColors.white,
+                                size: 22,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 14),
+                        Text(
+                          'Halo, Dosen Pembimbing 👋',
+                          style: AppTextStyles.headline.copyWith(
+                            color: AppColors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          state.lecturerUser.name,
+                          style: AppTextStyles.body.copyWith(
+                            color: AppColors.white.withAlpha(200),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
                         Row(
                           children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Kuota terisi',
-                                    style: AppTextStyles.small.copyWith(
-                                      color: AppColors.textGray,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: LinearProgressIndicator(
-                                      value: state.lecturerUser.maxQuota > 0
-                                          ? state.lecturerUser.currentQuota /
-                                              state.lecturerUser.maxQuota
-                                          : 0,
-                                      minHeight: 8,
-                                      backgroundColor: AppColors.borderLight,
-                                      color: AppColors.successGreen,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                            _StatChip(
+                              icon: Icons.hourglass_top_rounded,
+                              label: '$waitingCount Menunggu',
+                              color: AppColors.accentYellow,
                             ),
-                            const SizedBox(width: 16),
-                            Text(
-                              '${state.lecturerUser.currentQuota}/${state.lecturerUser.maxQuota}',
-                              style: AppTextStyles.title.copyWith(
-                                color: AppColors.successGreen,
-                              ),
+                            const SizedBox(width: 10),
+                            _StatChip(
+                              icon: Icons.check_circle_rounded,
+                              label: '$acceptedCount Diterima',
+                              color: AppColors.successGreen,
                             ),
                           ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Tim aktif dibimbing',
-                          style: AppTextStyles.caption,
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
+                ),
+              ),
 
-                  // ── Request bimbingan masuk ────────────────────────────────
-                  const SectionHeader(title: 'Request Bimbingan Masuk'),
-                  const SizedBox(height: 12),
-
-                  if (state.isMentoringRequestsLoading) ...[
-                    const LinearProgressIndicator(
-                      minHeight: 3,
-                      color: AppColors.primaryBlue,
-                      backgroundColor: AppColors.borderLight,
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  if (state.mentoringRequestError != null) ...[
-                    _ErrorBanner(message: state.mentoringRequestError!),
-                    const SizedBox(height: 12),
-                  ],
-
-                  if (state.mentoringRequests.isEmpty)
-                    _EmptyRequests()
-                  else
-                    ...state.mentoringRequests.map(
-                      (request) => Padding(
-                        padding: const EdgeInsets.only(bottom: 14),
-                        child: _MentoringRequestCard(request: request),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── Status card ────────────────────────────────────────────
+                    CustomCard(
+                      elevation: 1,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 42,
+                                height: 42,
+                                decoration: BoxDecoration(
+                                  color: AppColors.surfaceElevated,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.supervisor_account_rounded,
+                                  color: AppColors.primaryBlue,
+                                  size: 22,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Status Bimbingan',
+                                      style: AppTextStyles.subtitle,
+                                    ),
+                                    Text(
+                                      '$waitingCount request menunggu keputusan',
+                                      style: AppTextStyles.small.copyWith(
+                                        color: AppColors.textGray,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Kuota terisi',
+                                      style: AppTextStyles.small.copyWith(
+                                        color: AppColors.textGray,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: LinearProgressIndicator(
+                                        value: state.lecturerUser.maxQuota > 0
+                                            ? state.lecturerUser.currentQuota /
+                                                state.lecturerUser.maxQuota
+                                            : 0,
+                                        minHeight: 8,
+                                        backgroundColor: AppColors.borderLight,
+                                        color: AppColors.successGreen,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Text(
+                                '${state.lecturerUser.currentQuota}/${state.lecturerUser.maxQuota}',
+                                style: AppTextStyles.title.copyWith(
+                                  color: AppColors.successGreen,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Tim aktif dibimbing',
+                            style: AppTextStyles.caption,
+                          ),
+                        ],
                       ),
                     ),
-                ],
+                    const SizedBox(height: 24),
+
+                    // ── Request bimbingan masuk ────────────────────────────────
+                    const SectionHeader(title: 'Request Bimbingan Masuk'),
+                    const SizedBox(height: 12),
+
+                    if (state.isMentoringRequestsLoading) ...[
+                      const LinearProgressIndicator(
+                        minHeight: 3,
+                        color: AppColors.primaryBlue,
+                        backgroundColor: AppColors.borderLight,
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    if (state.mentoringRequestError != null) ...[
+                      _ErrorBanner(message: state.mentoringRequestError!),
+                      const SizedBox(height: 12),
+                    ],
+
+                    if (state.mentoringRequests.isEmpty)
+                      _EmptyRequests()
+                    else
+                      ...state.mentoringRequests.map(
+                        (request) => Padding(
+                          padding: const EdgeInsets.only(bottom: 14),
+                          child: _MentoringRequestCard(request: request),
+                        ),
+                      ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -279,11 +290,9 @@ class _LecturerDashboardScreenState extends State<LecturerDashboardScreen> {
     final quotaCtrl = TextEditingController(
       text: lecturer.maxQuota.toString(),
     );
-    // Expertise: editable sebagai comma-separated
     final expertiseCtrl = TextEditingController(
       text: (lecturer.expertise as List<String>).join(', '),
     );
-    // Pengalaman: editable sebagai newline-separated
     final expCtrl = TextEditingController(
       text: (lecturer.experiences as List<String>).join('\n'),
     );
@@ -369,8 +378,7 @@ class _LecturerDashboardScreenState extends State<LecturerDashboardScreen> {
     expCtrl.dispose();
   }
 
-  Widget _label(String text) =>
-      Padding(
+  Widget _label(String text) => Padding(
         padding: const EdgeInsets.only(bottom: 6),
         child: Text(text, style: AppTextStyles.subtitle),
       );
@@ -518,7 +526,6 @@ class _MentoringRequestCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header: nama tim + lomba + status
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -556,7 +563,6 @@ class _MentoringRequestCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // Judul proposal (preview singkat)
           if (request.proposalTitle.isNotEmpty) ...[
             Row(
               children: [
@@ -585,10 +591,8 @@ class _MentoringRequestCard extends StatelessWidget {
           const Divider(height: 1, color: AppColors.borderLight),
           const SizedBox(height: 12),
 
-          // Actions: Proposal | Detail Tim | Terima | Tolak
           Row(
             children: [
-              // Lihat proposal
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: () => _showProposalDetail(context),
@@ -608,7 +612,6 @@ class _MentoringRequestCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              // Terima
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: isWaiting
@@ -639,7 +642,6 @@ class _MentoringRequestCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              // Tolak
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: isWaiting
@@ -676,8 +678,6 @@ class _MentoringRequestCard extends StatelessWidget {
     );
   }
 
-  /// Dialog detail proposal: judul, ringkasan, tombol buka PDF, dan tombol
-  /// lihat detail tim (navigate ke TeamDetailScreen).
   void _showProposalDetail(BuildContext context) {
     showDialog<void>(
       context: context,
@@ -689,18 +689,13 @@ class _MentoringRequestCard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Judul
               const Text('Judul Proposal', style: AppTextStyles.subtitle),
               const SizedBox(height: 6),
               Text(
-                request.proposalTitle.isEmpty
-                    ? '-'
-                    : request.proposalTitle,
+                request.proposalTitle.isEmpty ? '-' : request.proposalTitle,
                 style: AppTextStyles.body,
               ),
               const SizedBox(height: 16),
-
-              // Ringkasan
               const Text('Ringkasan', style: AppTextStyles.subtitle),
               const SizedBox(height: 6),
               Text(
@@ -710,8 +705,6 @@ class _MentoringRequestCard extends StatelessWidget {
                 style: AppTextStyles.body.copyWith(color: AppColors.textGray),
               ),
               const SizedBox(height: 16),
-
-              // File PDF
               const Text('File Proposal', style: AppTextStyles.subtitle),
               const SizedBox(height: 8),
               if (request.proposalLink.isEmpty)
@@ -735,8 +728,6 @@ class _MentoringRequestCard extends StatelessWidget {
                   label: const Text('Buka File PDF'),
                 ),
               const SizedBox(height: 16),
-
-              // Tombol lihat detail tim
               const Divider(height: 1, color: AppColors.borderLight),
               const SizedBox(height: 12),
               PrimaryButton(

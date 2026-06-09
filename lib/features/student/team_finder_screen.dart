@@ -68,8 +68,6 @@ class _TeamFinderScreenState extends State<TeamFinderScreen>
 
   @override
   Widget build(BuildContext context) {
-    final state = AppStateScope.of(context);
-
     return SafeArea(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -208,7 +206,7 @@ class _CariAnggotaTab extends StatefulWidget {
 }
 
 class _CariAnggotaTabState extends State<_CariAnggotaTab> {
-  final _categories = const ['Semua', 'GEMASTIK', 'LIDM', 'Data'];
+  final _categories = const ['Semua', 'GEMASTIK', 'LIDM', 'PKM', 'P2MW'];
 
   @override
   Widget build(BuildContext context) {
@@ -229,10 +227,16 @@ class _CariAnggotaTabState extends State<_CariAnggotaTab> {
       return matchesQuery && matchesCategory;
     }).toList();
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return RefreshIndicator(
+      color: AppColors.primaryBlue,
+      backgroundColor: Colors.white,
+      onRefresh: () async {
+        // Refresh data tim
+        await state.loadTeams();
+      },
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
           // Search bar
           _SearchBar(
@@ -304,7 +308,7 @@ class _CariAnggotaTabState extends State<_CariAnggotaTab> {
             const SizedBox(height: 12),
           ],
           if (filteredTeams.isEmpty)
-            _EmptyState(message: 'Tidak ada tim yang cocok dengan pencarian.')
+            const _EmptyState(message: 'Tidak ada tim yang cocok dengan pencarian.')
           else
             ...filteredTeams.map(
               (team) => Padding(
@@ -341,10 +345,16 @@ class _CariTimTabState extends State<_CariTimTab> {
           post.skills.any((s) => s.toLowerCase().contains(query));
     }).toList();
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return RefreshIndicator(
+      color: AppColors.primaryBlue,
+      backgroundColor: Colors.white,
+      onRefresh: () async {
+        // Refresh data postingan pencarian anggota/tim
+        await state.loadAnggotaPosts();
+      },
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
           _SearchBar(
             controller: widget.searchController,
@@ -371,7 +381,7 @@ class _CariTimTabState extends State<_CariTimTab> {
             const SizedBox(height: 12),
           ],
           if (filteredPosts.isEmpty)
-            _EmptyState(
+            const _EmptyState(
               message: 'Belum ada postingan yang mencari tim.',
             )
           else
@@ -731,6 +741,7 @@ class _InfoPill extends StatelessWidget {
     );
   }
 }
+
 // ── Shared avatar widget ───────────────────────────────────────────────────
 
 class _ProfileAvatar extends StatelessWidget {

@@ -116,7 +116,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Image.asset(
-                        'assets/images/prestify_logo.png',
+                        'images/prestify_white.png',
                         fit: BoxFit.contain,
                       ),
                     ),

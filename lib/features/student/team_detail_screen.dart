@@ -183,29 +183,36 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
   // FIX: Dulu dialog dibuka sebelum data selesai dimuat sehingga builder
   // membaca state yang masih null.  Sekarang kita tunggu data ready terlebih
   // dahulu, baru buka dialog dengan data yang sudah pasti ada.
-  Future<void> _showMemberDetail(String studentId, String fallbackName) async {
+Future<void> _showMemberDetail(String studentId, String fallbackName) async {
     UserModel? userDetails;
     List<AchievementModel> achievements = [];
 
-    // Tampilkan loading snackbar sementara fetch
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.showSnackBar(
-      const SnackBar(
+    // Menggunakan perbaikan ScaffoldMessenger yang aman dari async context
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    
+    scaffoldMessenger.showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.primaryBlue,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         content: Row(
-          children: [
+          children: const [
             SizedBox(
               width: 18,
               height: 18,
               child: CircularProgressIndicator(
-                strokeWidth: 2,
+                strokeWidth: 2.5,
                 color: Colors.white,
               ),
             ),
-            SizedBox(width: 12),
-            Text('Memuat detail anggota...'),
+            SizedBox(width: 16),
+            Text(
+              'Memuat detail anggota...',
+              style: TextStyle(fontWeight: FontWeight.w500, color: Colors.white),
+            ),
           ],
         ),
-        duration: Duration(seconds: 10),
+        duration: const Duration(seconds: 10),
       ),
     );
 
@@ -214,132 +221,258 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
       userDetails = await state.studentRepository.getUserDetails(studentId);
       achievements = await state.studentRepository.getAchievements(studentId);
     } catch (_) {
-      // error akan ditangani di bawah
+      // Error handling di bawah via null check
     }
 
     if (!mounted) return;
-    messenger.hideCurrentSnackBar();
+    scaffoldMessenger.hideCurrentSnackBar();
 
     if (userDetails == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Gagal memuat detail anggota.')),
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.redAccent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          content: const Text('Gagal memuat detail anggota.'),
+        ),
       );
       return;
     }
 
-    final displayName =
-        userDetails.name.isEmpty ? fallbackName : userDetails.name;
+    final displayName = userDetails.name.isEmpty ? fallbackName : userDetails.name;
 
-    // ignore: use_build_context_synchronously
+    // Membuka dialog premium
     showDialog<void>(
       context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Detail Anggota'),
+      builder: (dialogContext) => AlertDialog(
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        contentPadding: EdgeInsets.zero, // Padding diatur manual di dalam agar presisi
         content: SizedBox(
-          width: double.maxFinite,
+          width: MediaQuery.of(context).size.width * 0.85,
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Avatar ──────────────────────────────────────────────────
-                Center(
-                  child: _ProfileAvatar(
-                    avatarUrl: userDetails!.avatarUrl,
-                    name: displayName,
-                    radius: 36,
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // ── Nama ────────────────────────────────────────────────────
-                Center(
-                  child: Text(displayName, style: AppTextStyles.subtitle),
-                ),
-                const SizedBox(height: 16),
-
-                // ── Skill ───────────────────────────────────────────────────
-                const Text('Skill', style: AppTextStyles.subtitle),
-                const SizedBox(height: 8),
-                userDetails.skills.isEmpty
-                    ? Text(
-                        'Belum ada skill.',
-                        style: AppTextStyles.body
-                            .copyWith(color: AppColors.textGray),
-                      )
-                    : Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: userDetails.skills
-                            .map((s) => SkillChip(label: s))
-                            .toList(),
-                      ),
-                const SizedBox(height: 12),
-
-                // ── Prestasi ────────────────────────────────────────────────
-                const Text('Prestasi', style: AppTextStyles.subtitle),
-                const SizedBox(height: 8),
-                if (achievements.isEmpty)
-                  Text(
-                    'Belum ada prestasi.',
-                    style:
-                        AppTextStyles.body.copyWith(color: AppColors.textGray),
-                  )
-                else
-                  ...achievements.map(
-                    (a) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(a.title, style: AppTextStyles.body),
-                          Text(
-                            a.subtitle,
-                            style: AppTextStyles.small
-                                .copyWith(color: AppColors.textGray),
-                          ),
-                        ],
+                // ── HEADER BANNER & AVATAR ───────────────────────────────────
+                Stack(
+                  alignment: Alignment.center,
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      height: 100,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [AppColors.primaryBlue, AppColors.lightBlue.withValues(alpha: 0.6)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
                       ),
                     ),
-                  ),
-                const SizedBox(height: 12),
-
-                // ── Portfolio ───────────────────────────────────────────────
-                const Text('Portfolio', style: AppTextStyles.subtitle),
-                const SizedBox(height: 8),
-                userDetails.portfolioUrl == null ||
-                        userDetails.portfolioUrl!.isEmpty
-                    ? Text(
-                        'Belum ada portfolio.',
-                        style: AppTextStyles.body
-                            .copyWith(color: AppColors.textGray),
-                      )
-                    : OutlinedButton.icon(
-                        onPressed: () =>
-                            _launchPortfolioUrl(userDetails!.portfolioUrl!),
-                        icon: const Icon(Icons.open_in_new),
-                        label: const Text('Buka Portfolio'),
+                    Positioned(
+                      top: 45,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black12,
+                              blurRadius: 10,
+                              offset: Offset(0, 4),
+                            )
+                          ],
+                        ),
+                        child: _ProfileAvatar(
+                          avatarUrl: userDetails!.avatarUrl,
+                          name: displayName,
+                          radius: 44,
+                        ),
                       ),
-                const SizedBox(height: 12),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 54),
 
-                // ── Akademik ────────────────────────────────────────────────
-                const Text('Informasi Akademik', style: AppTextStyles.subtitle),
-                const SizedBox(height: 8),
-                Text('Fakultas: ${userDetails.faculty ?? "-"}',
-                    style: AppTextStyles.body),
-                Text('Program Studi: ${userDetails.program ?? "-"}',
-                    style: AppTextStyles.body),
-                Text('Angkatan: ${userDetails.year ?? "-"}',
-                    style: AppTextStyles.body),
+                // ── NAMA & IDENTITAS UTAMA ───────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Text(
+                          displayName,
+                          textAlign: TextAlign.center,
+                          style: AppTextStyles.subtitle.copyWith(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 20,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          userDetails.program ?? 'Mahasiswa',
+                          style: AppTextStyles.small.copyWith(
+                            color: AppColors.textGray,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Divider(height: 1, thickness: 1),
+
+                // ── DETAIL ISI ────────────────────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ── Bagian Skill ──
+                      _buildSectionTitle(Icons.psychology_outlined, 'Skill & Keahlian'),
+                      const SizedBox(height: 8),
+                      userDetails.skills.isEmpty
+                          ? _buildEmptyText('Belum menambahkan skill.')
+                          : Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: userDetails.skills
+                                  .map((s) => SkillChip(label: s))
+                                  .toList(),
+                            ),
+                      const SizedBox(height: 20),
+
+                      // ── Bagian Prestasi ──
+                      _buildSectionTitle(Icons.emoji_events_outlined, 'Prestasi'),
+                      const SizedBox(height: 8),
+                      if (achievements.isEmpty)
+                        _buildEmptyText('Belum ada riwayat prestasi.')
+                      else
+                        ...achievements.map((a) => Container(
+                              margin: const EdgeInsets.only(bottom: 10),
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade50,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: Colors.grey.shade200),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(Icons.stars, color: Colors.amber.shade700, size: 18),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          a.title,
+                                          style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          a.subtitle,
+                                          style: AppTextStyles.small.copyWith(color: AppColors.textGray),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )),
+                      const SizedBox(height: 20),
+
+                      // ── Bagian Portfolio ──
+                      _buildSectionTitle(Icons.insert_link_outlined, 'Tautan Portofolio'),
+                      const SizedBox(height: 8),
+                      userDetails.portfolioUrl == null || userDetails.portfolioUrl!.trim().isEmpty
+                          ? _buildEmptyText('Belum menyertakan link.')
+                          : SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppColors.primaryBlue,
+                                  side: BorderSide(color: AppColors.primaryBlue),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                ),
+                                onPressed: () => _launchPortfolioUrl(userDetails!.portfolioUrl!),
+                                icon: const Icon(Icons.open_in_new, size: 18),
+                                label: const Text('Kunjungi Portofolio', style: TextStyle(fontWeight: FontWeight.bold)),
+                              ),
+                            ),
+                      const SizedBox(height: 20),
+
+                      // ── Bagian Akademik ──
+                      _buildSectionTitle(Icons.school_outlined, 'Informasi Akademik'),
+                      const SizedBox(height: 10),
+                      _buildAcademicRow('Fakultas', userDetails.faculty),
+                      _buildAcademicRow('Angkatan', userDetails.year?.toString()),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Tutup'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.textGray,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Tutup', style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── WIDGET HELPER UNTUK MENJAGA KODE TETAP BERSIH & RAPI ──────────────────
+
+  Widget _buildSectionTitle(IconData icon, String title) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: AppColors.primaryBlue),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: AppTextStyles.subtitle.copyWith(
+            fontWeight: FontWeight.bold,
+            fontSize: 15,
+            color: Colors.black87,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyText(String message) {
+    return Text(
+      message,
+      style: AppTextStyles.body.copyWith(
+        color: AppColors.textGray,
+        fontStyle: FontStyle.italic,
+        fontSize: 13,
+      ),
+    );
+  }
+
+  Widget _buildAcademicRow(String label, String? value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: AppTextStyles.body.copyWith(color: AppColors.textGray)),
+          Text(
+            value ?? '-',
+            style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w500, color: Colors.black87),
           ),
         ],
       ),
