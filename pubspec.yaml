@@ -63,6 +63,8 @@ flutter:
 
   assets:
     - assets/images/prestify_logo.png
+    - assets/images/prestify_white.png
+    - assets/images/prestify_blue.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:
