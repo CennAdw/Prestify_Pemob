@@ -116,7 +116,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Image.asset(
-                        'images/prestify_white.png',
+                        'assets/images/prestify_white.png',
                         fit: BoxFit.contain,
                       ),
                     ),
@@ -131,7 +131,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
                 const SizedBox(height: 36),
-                Text('Selamat datang\nkembali 👋', style: AppTextStyles.display),
+                Text('Selamat datang\nkembali', style: AppTextStyles.display),
                 const SizedBox(height: 8),
                 Text(
                   'Masuk dengan NIM/NIDN dan password, atau akun Google @upi.edu.',
