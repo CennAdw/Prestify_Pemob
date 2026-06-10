@@ -134,7 +134,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Text('Selamat datang\nkembali', style: AppTextStyles.display),
                 const SizedBox(height: 8),
                 Text(
-                  'Masuk dengan NIM/NIDN dan password, atau akun Google @upi.edu.',
+                  'Masuk dengan NIM/NIP dan password, atau akun Google @upi.edu.',
                   style: AppTextStyles.body.copyWith(color: AppColors.textGray),
                 ),
                 const SizedBox(height: 32),
